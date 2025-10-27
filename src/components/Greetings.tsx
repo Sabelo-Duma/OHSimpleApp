@@ -61,6 +61,12 @@ export default function Greetings({
     return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
   });
 
+  // Consistent button classes for all survey actions
+  const buttonClasses = "px-3 py-1 rounded text-white text-sm font-medium transition";
+  const viewButtonClasses = `${buttonClasses} bg-blue-600 hover:bg-blue-700`;
+  const resumeButtonClasses = `${buttonClasses} bg-green-600 hover:bg-green-700`;
+  const deleteButtonClasses = `${buttonClasses} bg-red-600 hover:bg-red-700`;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-8">
       <Container>
@@ -146,38 +152,40 @@ export default function Greetings({
                             {s.status === "Completed" ? "Completed" : "In Progress"}
                           </span>
                         </td>
-                        <td className="px-4 py-2 text-sm flex gap-2">
-                          {s.status === "Completed" ? (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleViewSurvey(s)}
-                                className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                              >
-                                View
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClick(s.id)}
-                                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => onResumeSurvey(s)}
-                                className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                              >
-                                Resume
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClick(s.id)}
-                                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
+                        <td className="px-4 py-2 text-sm">
+                          <div className="flex gap-2">
+                            {s.status === "Completed" ? (
+                              <>
+                                <button
+                                  onClick={() => handleViewSurvey(s)}
+                                  className={viewButtonClasses}
+                                >
+                                  View
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClick(s.id)}
+                                  className={deleteButtonClasses}
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => onResumeSurvey(s)}
+                                  className={resumeButtonClasses}
+                                >
+                                  Resume
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClick(s.id)}
+                                  className={deleteButtonClasses}
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
