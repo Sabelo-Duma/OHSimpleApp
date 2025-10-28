@@ -101,25 +101,18 @@ export default function OHSimpleApp({
   };
 
   // --- Handle Preview Completion ---
-  const handlePreviewComplete = () => {
+  const handlePreviewComplete = (completedSurvey: SurveyData) => {
     if (readOnly) {
-      // In read-only mode, just go back to the beginning
+      // In read-only mode, just go back to greeting
       onExit(data);
       return;
     }
 
-    // Here you can handle what happens when the survey is completed
-    // For example: mark survey as complete, show success message, etc.
-    console.log("Survey completed successfully!");
+    // Save the completed survey
+    onSaveSurvey(completedSurvey);
     
-    // Optionally save the final survey data
-    onSaveSurvey(data);
-    
-    // You could also navigate to a completion page or show a success message
-    alert("Survey completed successfully! Thank you for your submission.");
-    
-    // Or go back to the beginning for a new survey
-    startNewSurvey();
+    // Navigate back to greeting page
+    onExit(completedSurvey);
   };
 
   return (
@@ -268,16 +261,16 @@ export default function OHSimpleApp({
             )}
 
             {mode === "hearing" && (
-  <HearingProtectionForm
-    data={data}
-    selectedAreaPath={currentAreaPath}
-    onChange={patch}
-    onSave={() => onSaveSurvey(data)}
-    onNext={() => setMode("exposures")}
-    onPrev={() => setMode("controls")}
-    readOnly={readOnly}
-  />
-)}
+              <HearingProtectionForm
+                data={data}
+                selectedAreaPath={currentAreaPath}
+                onChange={patch}
+                onSave={() => onSaveSurvey(data)}
+                onNext={() => setMode("exposures")}
+                onPrev={() => setMode("controls")}
+                readOnly={readOnly}
+              />
+            )}
 
             {mode === "exposures" && (
               <ExposuresForm

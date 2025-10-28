@@ -200,7 +200,7 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
     });
   };
 
-  // Generate PDF using pdfMake - FIXED: Remove localhost popup but keep View PDF button
+  // Generate PDF using pdfMake
   const handlePdfClick = () => {
     if (!pdfMake) {
       setErrorMessage('PDF generation is not available in your current environment. Please use the Word document download instead.');
@@ -415,10 +415,9 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
     };
 
     try {
-      // FIXED: Use getBlob and window.open to view PDF without localhost popup
+      // Use getBlob and window.open to view PDF without triggering popup blocker
       pdfMake.createPdf(docDefinition).getBlob((blob: Blob) => {
         const url = URL.createObjectURL(blob);
-        // Open in new tab without triggering browser popup blocker
         window.open(url, '_blank');
         setHasViewedPDF(true);
       });
@@ -443,7 +442,7 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
         console.warn("Logo not found, continuing without it.");
       }
 
-      // Build Word content - only pass the expected 2 arguments
+      // Build Word content
       const wordChildren: (Paragraph | Table)[] = await buildWordContent(data, logoBuffer);
 
       const doc = new Document({
@@ -483,24 +482,40 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
       // In view mode, just return to greeting page
       onNext(data);
     } else {
+      // Save signature before showing completion dialog
+      if (canvasRef.current && hasSignature && !signature) {
+        const dataUrl = canvasRef.current.toDataURL('image/png');
+        setSignature(dataUrl);
+      }
       // In edit mode, show completion dialog
       setCompletionDialogOpen(true);
     }
   };
 
   const confirmCompleteSurvey = () => {
+    // Get the final signature
+    let finalSignature = signature;
+    if (canvasRef.current && hasSignature && !finalSignature) {
+      finalSignature = canvasRef.current.toDataURL('image/png');
+    }
+
     // Mark survey as completed
     const completedSurvey: SurveyData = {
       ...data,
       status: "Completed" as const,
       completedAt: new Date().toISOString(),
       verificationComment: comment,
-      verificationSignature: signature
+      verificationSignature: finalSignature
     };
     
-    // Pass the completed survey back to parent (which should navigate to Greetings screen)
-    onNext(completedSurvey);
+    // Close dialog first to prevent any UI issues
     setCompletionDialogOpen(false);
+    
+    // Use setTimeout to ensure dialog closes before navigation
+    setTimeout(() => {
+      // Pass the completed survey back to parent (which should navigate to Greetings screen)
+      onNext(completedSurvey);
+    }, 100);
   };
 
   const canProceed = readOnly || (hasViewedPDF && comment.trim() && (hasSignature || signature.trim()));
