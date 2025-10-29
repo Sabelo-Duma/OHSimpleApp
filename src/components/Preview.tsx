@@ -1,4 +1,4 @@
-// src/components/Preview.tsx
+
 import React, { useState, useEffect, useRef } from "react";
 import { SurveyData, Area } from "./types";
 import Section from "./common/Section";
