@@ -416,15 +416,39 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
     }
   };
 
-  const handleDownloadFieldsheet = () => {
-    if (pdfUrl) {
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = 'survey-fieldsheet.docx';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+  const handleViewWordPreview = async () => {
+    if (!pdfUrl) return;
+
+    // Word documents cannot be viewed directly in browser tabs like PDFs
+    // Browsers only support viewing PDFs, images, text, and HTML
+    // For Word documents, we need to trigger a download
+
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+
+    // Generate dynamic filename based on survey data
+    const timestamp = new Date().toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'long',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).replace(/[,:\s]+/g, '-').toUpperCase();
+
+    const reportTitle = `Report_${data.client || 'Survey'}-${data.project || 'Project'}-${timestamp}.docx`;
+
+    // Set download attribute to provide a filename
+    link.download = reportTitle;
+
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Note: This does NOT mark the document as viewed
+    // Only viewing the PDF Fieldsheet enables the comment/signature section
   };
 
   const handleCompleteSurvey = () => {
@@ -452,7 +476,8 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
     setCompletionDialogOpen(false);
   };
 
-  const canProceed = readOnly || (hasViewedPDF && comment.trim() && (hasSignature || signature.trim()));
+  // User must view PDF, provide comment, AND draw a signature to complete the survey
+  const canProceed = readOnly || (hasViewedPDF && comment.trim() && hasSignature);
 
   return (
     <>
@@ -485,17 +510,17 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
                       Your survey fieldsheet has been generated and is ready for review.
                     </p>
                     <div className="flex gap-3">
-                      <Button onClick={handleDownloadFieldsheet} variant="secondary">
-                        Download Word Document
+                      <Button onClick={handleViewWordPreview} variant="secondary">
+                        Download Word Report
                       </Button>
                       {pdfAvailable ? (
                         <Button onClick={handlePdfClick} variant="primary">
                           View PDF Fieldsheet
                         </Button>
                       ) : (
-                        <Button 
-                          variant="primary" 
-                          disabled 
+                        <Button
+                          variant="primary"
+                          disabled
                           className="opacity-50 cursor-not-allowed"
                           onClick={() => {}}
                         >
@@ -552,13 +577,13 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
                     }`}
                     disabled={!hasViewedPDF}
                   />
-                  <label 
-                    htmlFor="viewedPDF" 
+                  <label
+                    htmlFor="viewedPDF"
                     className={`text-sm font-medium ${
                       hasViewedPDF ? "text-gray-900" : "text-gray-500"
                     }`}
                   >
-                    I confirm that I have viewed the complete fieldsheet document (PDF or Word)
+                    I confirm that I have viewed the PDF Fieldsheet
                   </label>
                 </div>
               )}
@@ -694,8 +719,8 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
                   </h3>
                   <div className="mt-2 text-sm text-yellow-700">
                     <ul className="list-disc pl-5 space-y-1">
-                      <li>Click "View PDF Fieldsheet" to open the complete document in a new tab</li>
-                      <li>Alternatively, download the Word document for offline review</li>
+                      <li>Click "Download Word Report" to download the complete comprehensive report (for your records)</li>
+                      <li>Click "View PDF Fieldsheet" to view and verify the survey data (required to enable comment and signature sections)</li>
                       <li>Verify all survey data, measurements, and equipment information</li>
                       <li>Check for any missing or incorrect information</li>
                       <li>Provide detailed comments about your review</li>
