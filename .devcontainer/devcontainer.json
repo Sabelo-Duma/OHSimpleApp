@@ -8,19 +8,17 @@
     }
   },
 
-  "forwardPorts": [3000],
-
   "portsAttributes": {
     "3000": {
       "label": "React App",
-      "onAutoForward": "openBrowser",
+      "onAutoForward": "notify",
       "protocol": "https"
     }
   },
 
   "postCreateCommand": "npm install",
 
-  "postStartCommand": "echo '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✅ Setup complete! Run: npm start\n\n🚨 IMPORTANT: DO NOT USE localhost:3000!\n\n📍 To access the app:\n   1. Run: npm start\n   2. Click PORTS tab at the bottom\n   3. Right-click port 3000 → Open in Browser\n\n📖 Full guide: .devcontainer/HOW_TO_ACCESS.md\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'",
+  "postStartCommand": "echo '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✅ Setup complete! Run: npm start\n\n🚨 IMPORTANT: DO NOT USE localhost:3000!\n\n📍 To access the app:\n   1. Run: npm start\n   2. Wait for the port to be forwarded\n   3. Click PORTS tab at the bottom\n   4. Copy the forwarded URL for port 3000\n   5. Add this URL to Azure App Registration redirect URIs\n   6. Then open the URL in your browser\n\n📖 Full guide: .devcontainer/HOW_TO_ACCESS.md\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'",
 
   "customizations": {
     "vscode": {
