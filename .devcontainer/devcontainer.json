@@ -13,11 +13,14 @@
   "portsAttributes": {
     "3000": {
       "label": "React App",
-      "onAutoForward": "notify"
+      "onAutoForward": "openBrowser",
+      "protocol": "https"
     }
   },
 
   "postCreateCommand": "npm install",
+
+  "postStartCommand": "echo '\n✅ Setup complete! Run: npm start\n⚠️  IMPORTANT: Use the forwarded URL (not localhost) when the app starts\n'",
 
   "customizations": {
     "vscode": {
