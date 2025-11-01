@@ -2,6 +2,22 @@
 
 A React-based application for Occupational Health and Safety noise survey reporting with SANAS compliance.
 
+---
+
+## 🚨 CRITICAL: If You See "localhost refused to connect"
+
+**You're trying to use `localhost:3000` - this does NOT work in Codespaces!**
+
+**Quick Fix:**
+1. Look at the bottom of VSCode
+2. Click the **PORTS** tab
+3. Find port **3000**
+4. Right-click → **Open in Browser**
+
+**Full Guide:** [.devcontainer/HOW_TO_ACCESS.md](.devcontainer/HOW_TO_ACCESS.md)
+
+---
+
 ## Testing in GitHub Codespaces
 
 ### Quick Start

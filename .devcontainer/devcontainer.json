@@ -20,7 +20,7 @@
 
   "postCreateCommand": "npm install",
 
-  "postStartCommand": "echo '\n✅ Setup complete! Run: npm start\n⚠️  IMPORTANT: Use the forwarded URL (not localhost) when the app starts\n'",
+  "postStartCommand": "echo '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✅ Setup complete! Run: npm start\n\n🚨 IMPORTANT: DO NOT USE localhost:3000!\n\n📍 To access the app:\n   1. Run: npm start\n   2. Click PORTS tab at the bottom\n   3. Right-click port 3000 → Open in Browser\n\n📖 Full guide: .devcontainer/HOW_TO_ACCESS.md\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'",
 
   "customizations": {
     "vscode": {
