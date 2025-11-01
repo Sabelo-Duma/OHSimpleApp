@@ -14,7 +14,8 @@
     "3000": {
       "label": "React App",
       "onAutoForward": "notify",
-      "protocol": "https"
+      "protocol": "https",
+      "visibility": "public"
     }
   },
 
