@@ -5,7 +5,7 @@ import Section from "./common/Section";
 import Actions from "./common/Actions";
 import Button from "./common/Button";
 import { buildWordContent } from "./helpers";
-import { Document, Packer, Paragraph, Table } from "docx";
+import { Document, Packer, Paragraph, Table, Footer, PageNumber, AlignmentType, TextRun } from "docx";
 import ConfirmDialog from "./common/ConfirmDialog";
 
 // Import pdfmake with error handling
@@ -402,6 +402,25 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
           {
             properties: {},
             children: wordChildren,
+            footers: {
+              default: new Footer({
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun("Page "),
+                      new TextRun({
+                        children: [PageNumber.CURRENT],
+                      }),
+                      new TextRun(" of "),
+                      new TextRun({
+                        children: [PageNumber.TOTAL_PAGES],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            },
           },
         ],
       });

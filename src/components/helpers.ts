@@ -10,6 +10,11 @@ import {
   WidthType,
   BorderStyle,
   ImageRun,
+  PageBreak,
+  Header,
+  Footer,
+  PageNumber,
+  NumberFormat,
 } from "docx";
 
 /**
@@ -154,11 +159,12 @@ function collectAreas(areas: Area[], prefix = ""): { area: Area, numbering: stri
 
 /**
  * Build Word doc content - Comprehensive Report Format with all sections 1-11
+ * Returns children array that can be used directly in Document sections
  */
 export async function buildWordContent(
   data: SurveyData,
   logoBuffer?: ArrayBuffer
-) {
+): Promise<(Paragraph | Table)[]> {
   const children: (Paragraph | Table)[] = [];
 
   // Add logo if provided
@@ -325,8 +331,8 @@ export async function buildWordContent(
     })
   );
 
-  // Page break indicator
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  // Page break
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 1.0 - EXECUTIVE SUMMARY
@@ -477,7 +483,7 @@ export async function buildWordContent(
   );
 
   // Page break
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 2.0 - TABLE OF CONTENTS
@@ -533,7 +539,7 @@ export async function buildWordContent(
   );
 
   // Page break
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 3.0 - LIST OF TABLES AND DIAGRAMS
@@ -558,7 +564,7 @@ export async function buildWordContent(
   );
 
   // Page break
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 4.0 - TERMS, ABBREVIATIONS AND REFERENCES
@@ -759,7 +765,7 @@ export async function buildWordContent(
   );
 
   // Page break
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 5.0 - NOISE SURVEY INTRODUCTION
@@ -1025,7 +1031,7 @@ export async function buildWordContent(
   );
 
   // Page break
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 6.0 - SURVEY METHODOLOGY
@@ -1281,7 +1287,7 @@ export async function buildWordContent(
   );
 
   // Page break
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 7.0 - RESULTS AND DISCUSSION (EXISTING IMPLEMENTATION)
@@ -1290,17 +1296,21 @@ export async function buildWordContent(
     new Paragraph({
       children: [new TextRun({ text: "7.0 RESULTS AND DISCUSSION", bold: true, size: 28 })],
       spacing: { before: 400, after: 300 }
-    }),
-    new Paragraph({
-      children: [new TextRun({ text: `TABLE 7.1.1 NOISE ZONING RESULTS: ${data.surveyType || "Noise Zoning"}`, bold: true })],
-      spacing: { before: 200, after: 200 },
     })
   );
 
   // Build detailed noise zoning results table for each area
+  // Only show areas at the lowest level where measurements were actually recorded
   const allAreas = collectAreas(data.areas || []);
 
-  allAreas.forEach(({ area, numbering }) => {
+  // Filter to only include areas with measurements (lowest level areas with data)
+  const areasWithMeasurements = allAreas.filter(({ numbering }) => {
+    const areaKey = JSON.stringify(getAreaPathObject(numbering));
+    const measurements = data.measurementsByArea?.[areaKey] || [];
+    return measurements.length > 0;
+  });
+
+  areasWithMeasurements.forEach(({ area, numbering }) => {
     const areaKey = JSON.stringify(getAreaPathObject(numbering));
     const noiseSources = data.noiseSourcesByArea?.[areaKey] || [];
     const measurements = data.measurementsByArea?.[areaKey] || [];
@@ -1308,6 +1318,26 @@ export async function buildWordContent(
     const devices = data.hearingProtectionDevices?.[areaKey] || [];
     const exposures = data.exposuresByArea?.[areaKey];
     const comments = data.commentsByArea?.[areaKey];
+
+    // Build hierarchical path for table title
+    const parts = numbering.split('.');
+    let hierarchicalPath = "";
+    for (let i = 0; i < parts.length; i++) {
+      const pathNums = parts.slice(0, i + 1).join('.');
+      const pathArea = allAreas.find(a => a.numbering === pathNums)?.area;
+      if (pathArea) {
+        hierarchicalPath += pathArea.name;
+        if (i < parts.length - 1) hierarchicalPath += ":";
+      }
+    }
+
+    // Add table title with hierarchical path
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: `TABLE 7.1.1 NOISE ZONING RESULTS: ${hierarchicalPath}`, bold: true })],
+        spacing: { before: 200, after: 200 },
+      })
+    );
 
     // Calculate average noise level from measurements
     let avgNoiseLevel = "N/A";
@@ -1451,7 +1481,7 @@ export async function buildWordContent(
   children.push(new Paragraph({ text: "", spacing: { after: 400, before: 400 } }));
 
   // Page break
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 8.0 - RECOMMENDATIONS
@@ -1759,7 +1789,7 @@ export async function buildWordContent(
   );
 
   // Page break
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 9.0 - CONCLUSION
@@ -1784,7 +1814,7 @@ export async function buildWordContent(
   );
 
   // Page break
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 10.0 - CERTIFICATES
@@ -1817,7 +1847,7 @@ export async function buildWordContent(
   );
 
   // Page break
-  children.push(new Paragraph({ text: "---PAGE BREAK---", alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 } }));
+  children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 11.0 - SIGNATURE PAGE
