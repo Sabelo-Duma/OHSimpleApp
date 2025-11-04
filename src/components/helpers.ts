@@ -15,7 +15,67 @@ import {
   Footer,
   PageNumber,
   NumberFormat,
+  ShadingType,
 } from "docx";
+
+/**
+ * Helper function to create yellow-highlighted TextRun for survey response data
+ * This distinguishes user-provided survey data from static template text
+ */
+function highlightedText(text: string, options?: { bold?: boolean; size?: number }): TextRun {
+  return new TextRun({
+    text: text,
+    highlight: "yellow",
+    bold: options?.bold,
+    size: options?.size,
+    font: "Calibri",
+  });
+}
+
+/**
+ * Helper function to create yellow-shaded table cell for survey response data
+ */
+function highlightedCell(content: string | Paragraph, options?: { bold?: boolean; colSpan?: number }): TableCell {
+  const paragraph = typeof content === 'string'
+    ? new Paragraph({ text: content, alignment: AlignmentType.LEFT })
+    : content;
+
+  return new TableCell({
+    children: [paragraph],
+    shading: {
+      fill: "FFFF00", // Yellow background
+      type: ShadingType.CLEAR,
+    },
+    columnSpan: options?.colSpan,
+  });
+}
+
+/**
+ * Helper function to create table header cell with dark blue background
+ */
+function headerCell(text: string, options?: { colSpan?: number }): TableCell {
+  return new TableCell({
+    children: [
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: text,
+            bold: true,
+            color: "FFFFFF", // White text
+            size: 20, // 10pt
+            font: "Calibri",
+          })
+        ],
+        alignment: AlignmentType.CENTER,
+      })
+    ],
+    shading: {
+      fill: "1A3B68", // Dark blue
+      type: ShadingType.CLEAR,
+    },
+    columnSpan: options?.colSpan,
+  });
+}
 
 /**
  * Checks if a given step in the survey is valid
@@ -199,17 +259,26 @@ export async function buildWordContent(
       spacing: { after: 100 }
     }),
     new Paragraph({
-      text: `Conducted for: ${data.client}`,
+      children: [
+        new TextRun({ text: "Conducted for: ", size: 22, font: "Calibri" }),
+        highlightedText(data.client, { size: 22 })
+      ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 100 }
     }),
     new Paragraph({
-      text: `Site: ${data.site}`,
+      children: [
+        new TextRun({ text: "Site: ", size: 22, font: "Calibri" }),
+        highlightedText(data.site, { size: 22 })
+      ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 100 }
     }),
     new Paragraph({
-      text: `Survey Period: ${data.startDate} to ${data.endDate}`,
+      children: [
+        new TextRun({ text: "Survey Period: ", size: 22, font: "Calibri" }),
+        highlightedText(`${data.startDate} to ${data.endDate}`, { size: 22 })
+      ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 }
     }),
@@ -217,15 +286,44 @@ export async function buildWordContent(
     new Paragraph({ text: "", spacing: { after: 200 } }),
 
     new Paragraph({
-      children: [new TextRun({ text: "Project Details:", bold: true, size: 24 })],
+      children: [new TextRun({ text: "Project Details:", bold: true, size: 24, font: "Calibri" })],
       spacing: { after: 100 }
     }),
-    new Paragraph({ text: `Client: ${data.client}` }),
-    new Paragraph({ text: `Project Reference: ${data.project}` }),
-    new Paragraph({ text: `Site Location: ${data.site}` }),
-    new Paragraph({ text: `Survey Type: ${data.surveyType}` }),
-    new Paragraph({ text: `Survey Dates: ${data.startDate} to ${data.endDate}` }),
-    new Paragraph({ text: `Report Date: ${new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'long', year: 'numeric' })}` }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Client: ", size: 20, font: "Calibri" }),
+        highlightedText(data.client, { size: 20 })
+      ]
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Project Reference: ", size: 20, font: "Calibri" }),
+        highlightedText(data.project, { size: 20 })
+      ]
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Site Location: ", size: 20, font: "Calibri" }),
+        highlightedText(data.site, { size: 20 })
+      ]
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Survey Type: ", size: 20, font: "Calibri" }),
+        highlightedText(data.surveyType, { size: 20 })
+      ]
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Survey Dates: ", size: 20, font: "Calibri" }),
+        highlightedText(`${data.startDate} to ${data.endDate}`, { size: 20 })
+      ]
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: `Report Date: ${new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'long', year: 'numeric' })}`, size: 20, font: "Calibri" })
+      ]
+    }),
     new Paragraph({ text: "", spacing: { after: 300 } }),
 
     new Paragraph({
@@ -281,14 +379,8 @@ export async function buildWordContent(
   const sanasTableRows: TableRow[] = [
     new TableRow({
       children: [
-        new TableCell({
-          children: [new Paragraph({ children: [new TextRun({ text: "Inspection Activity", bold: true })], alignment: AlignmentType.CENTER })],
-          width: { size: 40, type: WidthType.PERCENTAGE }
-        }),
-        new TableCell({
-          children: [new Paragraph({ children: [new TextRun({ text: "Scope Description", bold: true })], alignment: AlignmentType.CENTER })],
-          width: { size: 60, type: WidthType.PERCENTAGE }
-        }),
+        headerCell("Inspection Activity"),
+        headerCell("Scope Description"),
       ],
     }),
     new TableRow({
@@ -348,7 +440,15 @@ export async function buildWordContent(
       spacing: { before: 200, after: 100 }
     }),
     new Paragraph({
-      text: `This report presents the findings of a comprehensive occupational hygiene noise survey conducted at ${data.site} for ${data.client}. The survey was performed from ${data.startDate} to ${data.endDate} in accordance with SANS 10083:2013 and the Noise-Induced Hearing Loss (NIHL) Regulations, 2003.`,
+      children: [
+        new TextRun({ text: "This report presents the findings of a comprehensive occupational hygiene noise survey conducted at ", size: 20, font: "Calibri" }),
+        highlightedText(data.site, { size: 20 }),
+        new TextRun({ text: " for ", size: 20, font: "Calibri" }),
+        highlightedText(data.client, { size: 20 }),
+        new TextRun({ text: ". The survey was performed from ", size: 20, font: "Calibri" }),
+        highlightedText(`${data.startDate} to ${data.endDate}`, { size: 20 }),
+        new TextRun({ text: " in accordance with SANS 10083:2013 and the Noise-Induced Hearing Loss (NIHL) Regulations, 2003.", size: 20, font: "Calibri" })
+      ],
       spacing: { after: 100 }
     }),
     new Paragraph({
@@ -473,7 +573,11 @@ export async function buildWordContent(
       spacing: { before: 200, after: 100 }
     }),
     new Paragraph({
-      text: `This survey provides a comprehensive assessment of noise exposure at ${data.site}. Implementation of the recommendations in this report will support compliance with regulatory requirements, reduce the risk of noise-induced hearing loss, and demonstrate the employer's commitment to employee health and safety.`,
+      children: [
+        new TextRun({ text: "This survey provides a comprehensive assessment of noise exposure at ", size: 20, font: "Calibri" }),
+        highlightedText(data.site, { size: 20 }),
+        new TextRun({ text: ". Implementation of the recommendations in this report will support compliance with regulatory requirements, reduce the risk of noise-induced hearing loss, and demonstrate the employer's commitment to employee health and safety.", size: 20, font: "Calibri" })
+      ],
       spacing: { after: 100 }
     }),
     new Paragraph({
@@ -486,55 +590,91 @@ export async function buildWordContent(
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
-  // SECTION 2.0 - TABLE OF CONTENTS
+  // SECTION 2.0 - TABLE OF CONTENTS (Matching Reference Document)
   // ====================================================================
   children.push(
     new Paragraph({
       children: [new TextRun({ text: "2.0 TABLE OF CONTENTS", bold: true, size: 28 })],
       spacing: { before: 400, after: 300 }
     }),
-    new Paragraph({ text: "1.0 EXECUTIVE SUMMARY" }),
-    new Paragraph({ text: "    1.1 Introduction" }),
-    new Paragraph({ text: "    1.2 Main Findings" }),
-    new Paragraph({ text: "    1.3 Recommendations" }),
+    new Paragraph({
+      children: [new TextRun({ text: "1.0  Executive Summary", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
     new Paragraph({ text: "", spacing: { after: 100 } }),
-    new Paragraph({ text: "2.0 TABLE OF CONTENTS" }),
+    new Paragraph({
+      children: [new TextRun({ text: "2.0  Table of Contents", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
     new Paragraph({ text: "", spacing: { after: 100 } }),
-    new Paragraph({ text: "3.0 LIST OF TABLES AND NOISE DIAGRAMS" }),
+    new Paragraph({
+      children: [new TextRun({ text: "3.0  List of Tables and Noise Diagrams", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
+    new Paragraph({ text: "      3.1  List of Tables", spacing: { after: 20 } }),
+    new Paragraph({ text: "      3.2  List of Noise Diagrams", spacing: { after: 50 } }),
     new Paragraph({ text: "", spacing: { after: 100 } }),
-    new Paragraph({ text: "4.0 TERMS, ABBREVIATIONS AND REFERENCES" }),
-    new Paragraph({ text: "    4.1 Terms and Formulae" }),
-    new Paragraph({ text: "    4.2 Abbreviations" }),
-    new Paragraph({ text: "    4.3 References" }),
+    new Paragraph({
+      children: [new TextRun({ text: "4.0  List of Abbreviations, Terms, Formulae and References", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
+    new Paragraph({ text: "      4.1  Abbreviations", spacing: { after: 20 } }),
+    new Paragraph({ text: "      4.2  Terms and Formulae", spacing: { after: 20 } }),
+    new Paragraph({ text: "      4.3  References", spacing: { after: 50 } }),
     new Paragraph({ text: "", spacing: { after: 100 } }),
-    new Paragraph({ text: "5.0 NOISE SURVEY INTRODUCTION" }),
-    new Paragraph({ text: "    5.1 Premises" }),
-    new Paragraph({ text: "    5.2 Objective and Purpose" }),
-    new Paragraph({ text: "    5.3 Health Effects" }),
-    new Paragraph({ text: "    5.4 Process and Task Description" }),
-    new Paragraph({ text: "    5.5 Historical Data" }),
-    new Paragraph({ text: "    5.6 Statutory Requirements" }),
+    new Paragraph({
+      children: [new TextRun({ text: "5.0  Noise Survey Introduction", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
+    new Paragraph({ text: "      5.1  Premises", spacing: { after: 20 } }),
+    new Paragraph({ text: "      5.2  Objective and Purpose", spacing: { after: 20 } }),
+    new Paragraph({ text: "      5.3  Health Effects", spacing: { after: 20 } }),
+    new Paragraph({ text: "      5.4  Process and Task Description", spacing: { after: 20 } }),
+    new Paragraph({ text: "      5.5  Historical Data", spacing: { after: 20 } }),
+    new Paragraph({ text: "      5.6  Statutory Requirements", spacing: { after: 50 } }),
     new Paragraph({ text: "", spacing: { after: 100 } }),
-    new Paragraph({ text: "6.0 SURVEY METHODOLOGY" }),
-    new Paragraph({ text: "    6.1 Instrumentation" }),
-    new Paragraph({ text: "    6.2 Measurement Methodology" }),
-    new Paragraph({ text: "    6.3 Strategy" }),
-    new Paragraph({ text: "    6.4 Deviations, Uncertainties and Limitations" }),
+    new Paragraph({
+      children: [new TextRun({ text: "6.0  Survey Methodology", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
+    new Paragraph({ text: "      6.1  Instrumentation", spacing: { after: 20 } }),
+    new Paragraph({ text: "      6.2  Measurements Methodology", spacing: { after: 20 } }),
+    new Paragraph({ text: "      6.3  Strategy", spacing: { after: 20 } }),
+    new Paragraph({ text: "      6.4  Deviations, Uncertainties and Limitations", spacing: { after: 50 } }),
     new Paragraph({ text: "", spacing: { after: 100 } }),
-    new Paragraph({ text: "7.0 RESULTS AND DISCUSSION" }),
-    new Paragraph({ text: "    7.1 Noise Zoning Results" }),
+    new Paragraph({
+      children: [new TextRun({ text: "7.0  Results and Discussion", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
+    new Paragraph({ text: "      7.1  Results", spacing: { after: 20 } }),
+    new Paragraph({ text: "      7.2  Discussion", spacing: { after: 50 } }),
     new Paragraph({ text: "", spacing: { after: 100 } }),
-    new Paragraph({ text: "8.0 RECOMMENDATIONS" }),
-    new Paragraph({ text: "    8.1 Engineering Control Measures" }),
-    new Paragraph({ text: "    8.2 Administrative Control Measures" }),
-    new Paragraph({ text: "    8.3 Hearing Protective Devices" }),
-    new Paragraph({ text: "    8.4 Medical Surveillance" }),
+    new Paragraph({
+      children: [new TextRun({ text: "8.0  Recommendations", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
+    new Paragraph({ text: "      8.1  Engineering Control Measures", spacing: { after: 20 } }),
+    new Paragraph({ text: "      8.2  Administrative Control Measures", spacing: { after: 20 } }),
+    new Paragraph({ text: "      8.3  Hearing Protective Devices (HPDs)", spacing: { after: 20 } }),
+    new Paragraph({ text: "      8.4  Medical Surveillance", spacing: { after: 20 } }),
+    new Paragraph({ text: "      8.5  Training", spacing: { after: 20 } }),
+    new Paragraph({ text: "      8.6  Records", spacing: { after: 20 } }),
+    new Paragraph({ text: "      8.7  Workplace Monitoring", spacing: { after: 50 } }),
     new Paragraph({ text: "", spacing: { after: 100 } }),
-    new Paragraph({ text: "9.0 CONCLUSION" }),
+    new Paragraph({
+      children: [new TextRun({ text: "9.0  Conclusion", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
     new Paragraph({ text: "", spacing: { after: 100 } }),
-    new Paragraph({ text: "10.0 CERTIFICATES" }),
+    new Paragraph({
+      children: [new TextRun({ text: "10.0  Certificates", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
     new Paragraph({ text: "", spacing: { after: 100 } }),
-    new Paragraph({ text: "11.0 SIGNATURE PAGE" }),
+    new Paragraph({
+      children: [new TextRun({ text: "11.0  Signature Page", bold: false, size: 22 })],
+      spacing: { after: 50 }
+    }),
     new Paragraph({ text: "", spacing: { after: 400, before: 400 } })
   );
 
@@ -542,7 +682,7 @@ export async function buildWordContent(
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
-  // SECTION 3.0 - LIST OF TABLES AND DIAGRAMS
+  // SECTION 3.0 - LIST OF TABLES AND NOISE DIAGRAMS
   // ====================================================================
   children.push(
     new Paragraph({
@@ -550,13 +690,13 @@ export async function buildWordContent(
       spacing: { before: 400, after: 300 }
     }),
     new Paragraph({
-      children: [new TextRun({ text: "Tables:", bold: true })],
+      children: [new TextRun({ text: "3.1 List of Tables", bold: true, size: 24 })],
       spacing: { before: 200, after: 100 }
     }),
     new Paragraph({ text: "Table 7.1.1: Noise Zoning Results" }),
     new Paragraph({ text: "", spacing: { after: 200 } }),
     new Paragraph({
-      children: [new TextRun({ text: "Diagrams:", bold: true })],
+      children: [new TextRun({ text: "3.2 List of Noise Diagrams", bold: true, size: 24 })],
       spacing: { before: 200, after: 100 }
     }),
     new Paragraph({ text: "(Diagrams would be inserted here if available)" }),
@@ -567,16 +707,48 @@ export async function buildWordContent(
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
-  // SECTION 4.0 - TERMS, ABBREVIATIONS AND REFERENCES
+  // SECTION 4.0 - LIST OF ABBREVIATIONS, TERMS, FORMULAE AND REFERENCES
   // ====================================================================
   children.push(
     new Paragraph({
-      children: [new TextRun({ text: "4.0 TERMS, ABBREVIATIONS AND REFERENCES", bold: true, size: 28 })],
+      children: [new TextRun({ text: "4.0 LIST OF ABBREVIATIONS, TERMS, FORMULAE AND REFERENCES", bold: true, size: 28 })],
       spacing: { before: 400, after: 300 }
     }),
 
     new Paragraph({
-      children: [new TextRun({ text: "4.1 Terms and Formulae", bold: true, size: 24 })],
+      children: [new TextRun({ text: "4.1 Abbreviations", bold: true, size: 24 })],
+      spacing: { before: 200, after: 100 }
+    }),
+    new Paragraph({ text: "AIA: Approved Inspection Authority" }),
+    new Paragraph({ text: "dB: Decibel" }),
+    new Paragraph({ text: "dB(A): A-weighted decibel" }),
+    new Paragraph({ text: "dB(C): C-weighted decibel (used for peak measurements)" }),
+    new Paragraph({ text: "HCP: Hearing Conservation Programme" }),
+    new Paragraph({ text: "HPD: Hearing Protective Device" }),
+    new Paragraph({ text: "Hz: Hertz (unit of frequency)" }),
+    new Paragraph({ text: "ISO: International Organization for Standardization" }),
+    new Paragraph({ text: "IEC: International Electrotechnical Commission" }),
+    new Paragraph({ text: "Leq: Equivalent Continuous Sound Level" }),
+    new Paragraph({ text: "LReq,8h: 8-Hour Equivalent Continuous Rating Level" }),
+    new Paragraph({ text: "LRN: Rating Level" }),
+    new Paragraph({ text: "MHSA: Mine Health and Safety Act, 1996 (Act 29 of 1996)" }),
+    new Paragraph({ text: "NIHL: Noise-Induced Hearing Loss" }),
+    new Paragraph({ text: "OHC: Occupational Health Clinic" }),
+    new Paragraph({ text: "OHSA: Occupational Health and Safety Act, 1993 (Act 85 of 1993)" }),
+    new Paragraph({ text: "Pa: Pascal (unit of pressure)" }),
+    new Paragraph({ text: "POPIA: Protection of Personal Information Act, 2013 (Act 4 of 2013)" }),
+    new Paragraph({ text: "PPE: Personal Protective Equipment" }),
+    new Paragraph({ text: "SANS: South African National Standard" }),
+    new Paragraph({ text: "SANAS: South African National Accreditation System" }),
+    new Paragraph({ text: "SLM: Sound Level Meter" }),
+    new Paragraph({ text: "SNR: Single Number Rating (hearing protector attenuation)" }),
+    new Paragraph({ text: "SPL: Sound Pressure Level" }),
+    new Paragraph({ text: "TWA: Time-Weighted Average" }),
+    new Paragraph({ text: "μPa: Micropascal (10⁻⁶ Pascal)" }),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
+
+    new Paragraph({
+      children: [new TextRun({ text: "4.2 Terms and Formulae", bold: true, size: 24 })],
       spacing: { before: 200, after: 100 }
     }),
 
@@ -688,39 +860,7 @@ export async function buildWordContent(
     }),
 
     new Paragraph({
-      children: [new TextRun({ text: "4.2 Abbreviations", bold: true, size: 24 })],
-      spacing: { before: 300, after: 100 }
-    }),
-    new Paragraph({ text: "AIA: Approved Inspection Authority" }),
-    new Paragraph({ text: "dB: Decibel" }),
-    new Paragraph({ text: "dB(A): A-weighted decibel" }),
-    new Paragraph({ text: "dB(C): C-weighted decibel (used for peak measurements)" }),
-    new Paragraph({ text: "HCP: Hearing Conservation Programme" }),
-    new Paragraph({ text: "HPD: Hearing Protective Device" }),
-    new Paragraph({ text: "Hz: Hertz (unit of frequency)" }),
-    new Paragraph({ text: "ISO: International Organization for Standardization" }),
-    new Paragraph({ text: "IEC: International Electrotechnical Commission" }),
-    new Paragraph({ text: "Leq: Equivalent Continuous Sound Level" }),
-    new Paragraph({ text: "LReq,8h: 8-Hour Equivalent Continuous Rating Level" }),
-    new Paragraph({ text: "LRN: Rating Level" }),
-    new Paragraph({ text: "MHSA: Mine Health and Safety Act, 1996 (Act 29 of 1996)" }),
-    new Paragraph({ text: "NIHL: Noise-Induced Hearing Loss" }),
-    new Paragraph({ text: "OHC: Occupational Health Clinic" }),
-    new Paragraph({ text: "OHSA: Occupational Health and Safety Act, 1993 (Act 85 of 1993)" }),
-    new Paragraph({ text: "Pa: Pascal (unit of pressure)" }),
-    new Paragraph({ text: "POPIA: Protection of Personal Information Act, 2013 (Act 4 of 2013)" }),
-    new Paragraph({ text: "PPE: Personal Protective Equipment" }),
-    new Paragraph({ text: "SANS: South African National Standard" }),
-    new Paragraph({ text: "SANAS: South African National Accreditation System" }),
-    new Paragraph({ text: "SLM: Sound Level Meter" }),
-    new Paragraph({ text: "SNR: Single Number Rating (hearing protector attenuation)" }),
-    new Paragraph({ text: "SPL: Sound Pressure Level" }),
-    new Paragraph({ text: "TWA: Time-Weighted Average" }),
-    new Paragraph({ text: "μPa: Micropascal (10⁻⁶ Pascal)" }),
-    new Paragraph({ text: "", spacing: { after: 300 } }),
-
-    new Paragraph({
-      children: [new TextRun({ text: "4.3 References and Standards", bold: true, size: 24 })],
+      children: [new TextRun({ text: "4.3 References", bold: true, size: 24 })],
       spacing: { before: 300, after: 100 }
     }),
 
@@ -781,7 +921,13 @@ export async function buildWordContent(
       spacing: { before: 200, after: 100 }
     }),
     new Paragraph({
-      text: `The noise survey was conducted at ${data.site}, operated by ${data.client}. The facility consists of various operational areas where employees are potentially exposed to occupational noise hazards during their normal work activities.`,
+      children: [
+        new TextRun({ text: "The noise survey was conducted at ", size: 20, font: "Calibri" }),
+        highlightedText(data.site, { size: 20 }),
+        new TextRun({ text: ", operated by ", size: 20, font: "Calibri" }),
+        highlightedText(data.client, { size: 20 }),
+        new TextRun({ text: ". The facility consists of various operational areas where employees are potentially exposed to occupational noise hazards during their normal work activities.", size: 20, font: "Calibri" })
+      ],
       spacing: { after: 100 }
     }),
     new Paragraph({
@@ -792,10 +938,30 @@ export async function buildWordContent(
       text: `Site details:`,
       spacing: { after: 50 }
     }),
-    new Paragraph({ text: `• Location: ${data.site}` }),
-    new Paragraph({ text: `• Client organization: ${data.client}` }),
-    new Paragraph({ text: `• Survey period: ${data.startDate} to ${data.endDate}` }),
-    new Paragraph({ text: `• Operational status during survey: ${data.normalConditions ? 'Normal operations' : 'Conditions as noted'}` }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "• Location: ", size: 20, font: "Calibri" }),
+        highlightedText(data.site, { size: 20 })
+      ]
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "• Client organization: ", size: 20, font: "Calibri" }),
+        highlightedText(data.client, { size: 20 })
+      ]
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "• Survey period: ", size: 20, font: "Calibri" }),
+        highlightedText(`${data.startDate} to ${data.endDate}`, { size: 20 })
+      ]
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "• Operational status during survey: ", size: 20, font: "Calibri" }),
+        highlightedText(data.normalConditions ? 'Normal operations' : 'Conditions as noted', { size: 20 })
+      ]
+    }),
     new Paragraph({ text: "", spacing: { after: 300 } }),
 
     new Paragraph({
@@ -914,7 +1080,9 @@ export async function buildWordContent(
       spacing: { before: 200, after: 100 }
     }),
     new Paragraph({
-      text: `${data.description || "The surveyed operations involve various tasks and processes that generate occupational noise. Employees perform their duties across different work areas, each with varying noise exposure profiles depending on proximity to noise sources, work duration, and operational activities."}`,
+      children: [
+        highlightedText(data.description || "The surveyed operations involve various tasks and processes that generate occupational noise. Employees perform their duties across different work areas, each with varying noise exposure profiles depending on proximity to noise sources, work duration, and operational activities.", { size: 20 })
+      ],
       spacing: { after: 100 }
     }),
     new Paragraph({
@@ -1137,7 +1305,12 @@ export async function buildWordContent(
       children: [new TextRun({ text: "Operational Conditions:", bold: true })],
       spacing: { after: 50 }
     }),
-    new Paragraph({ text: `• Normal operating conditions prevailed during measurements: ${data.normalConditions || 'Yes'}` }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "• Normal operating conditions prevailed during measurements: ", size: 20, font: "Calibri" }),
+        highlightedText(data.normalConditions || 'Yes', { size: 20 })
+      ]
+    }),
     new Paragraph({ text: "• All relevant noise-generating equipment operational during measurements" }),
     new Paragraph({ text: "• Production rates and process parameters representative of typical operations" }),
     new Paragraph({ text: "• Weather conditions suitable for outdoor measurements (wind speed <5 m/s, no precipitation)" }),
@@ -1407,59 +1580,44 @@ export async function buildWordContent(
     // Create detailed area table
     const areaTableRows: TableRow[] = [];
 
-    // Header row
+    // Header row with dark blue background
     areaTableRows.push(
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "No", bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Area / Location / Activity", bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Measurement Position", bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Measured Noise Rating Level in dB(A)", bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "8-Hour Equivalent Noise Rating Level (LReq,8h)", bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Raw Risk Classification of NIHL", bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Discussion", bold: true })] })] }),
+          headerCell("No"),
+          headerCell("Area / Location / Activity"),
+          headerCell("Measurement Position"),
+          headerCell("Measured Noise Rating Level in dB(A)"),
+          headerCell("8-Hour Equivalent Noise Rating Level (LReq,8h)"),
+          headerCell("Raw Risk Classification of NIHL"),
+          headerCell("Discussion"),
         ],
       })
     );
 
-    // Build discussion content
-    let discussionText = `Employees work ${area.shiftDuration || 8} hours shifts and spend up to ${area.exposureTime || area.shiftDuration || 8} hours in the respective areas.\n\n`;
+    // Build brief discussion summary for table
+    let briefDiscussion = `Employees work ${area.shiftDuration || 8} hour shifts and spend up to ${area.exposureTime || area.shiftDuration || 8} hours in this area.`;
 
     if (noiseSourcesDesc) {
-      discussionText += `Primary noise sources:\n${noiseSourcesDesc}\n\n`;
+      briefDiscussion += ` Primary noise sources include equipment and operational processes.`;
     }
 
-    discussionText += `Evaluation Results:\n• Normal operating conditions prevailed on the day of the survey: ${data.normalConditions || "Yes"}\n\n`;
-
-    discussionText += `Engineering Controls:\n• ${engineeringControls}\n\n`;
-
-    discussionText += `Administrative Controls:\n${adminControls}\n${customAdmin ? `• ${customAdmin}\n` : ""}\n`;
-
-    discussionText += `Hearing Protection Devices:\n${hpdDesc}\n\n`;
-
-    if (exposureInfo) {
-      discussionText += `${exposureInfo}\n\n`;
-    }
-
-    if (comments) {
-      discussionText += `Additional Comments:\n${comments}`;
-    }
-
-    // Data row
+    // Data row - ALL cells highlighted yellow as they contain survey response data
     areaTableRows.push(
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph(numbering)] }),
-          new TableCell({ children: [new Paragraph(area.name)] }),
-          new TableCell({ children: [new Paragraph(measuredLevels || "N/A")] }),
-          new TableCell({ children: [new Paragraph(avgNoiseLevel)] }),
-          new TableCell({ children: [new Paragraph(avgNoiseLevel)] }),
-          new TableCell({ children: [new Paragraph(riskClass)] }),
-          new TableCell({ children: [new Paragraph(discussionText)] }),
+          highlightedCell(numbering),
+          highlightedCell(area.name),
+          highlightedCell(measuredLevels || "N/A"),
+          highlightedCell(avgNoiseLevel),
+          highlightedCell(avgNoiseLevel),
+          highlightedCell(riskClass),
+          highlightedCell(briefDiscussion),
         ],
       })
     );
 
+    // Add the main results table
     children.push(
       new Table({
         rows: areaTableRows,
@@ -1476,6 +1634,312 @@ export async function buildWordContent(
     );
 
     children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+
+    // ====================================================================
+    // DETAILED INFORMATION BELOW TABLE (matching reference document format)
+    // ====================================================================
+
+    // Evaluation Results Section
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Evaluation Results:", bold: true, size: 22, font: "Calibri" })],
+        spacing: { before: 200, after: 100 }
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "• Normal operating conditions prevailed on the day of the survey: ", size: 20, font: "Calibri" }),
+          highlightedText(data.normalConditions || "Yes", { size: 20 })
+        ]
+      }),
+      new Paragraph({ text: "", spacing: { after: 200 } })
+    );
+
+    // Engineering Controls Section
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Engineering Controls:", bold: true, size: 22, font: "Calibri" })],
+        spacing: { before: 200, after: 100 }
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: "• ", size: 20, font: "Calibri" }),
+          highlightedText(engineeringControls || "None", { size: 20 })
+        ]
+      }),
+      new Paragraph({ text: "", spacing: { after: 200 } })
+    );
+
+    // Administrative Controls Section
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Administrative Controls:", bold: true, size: 22, font: "Calibri" })],
+        spacing: { before: 200, after: 100 }
+      })
+    );
+
+    // Parse administrative controls
+    const adminControlsList = controls?.adminControls || [];
+    if (adminControlsList.length > 0) {
+      adminControlsList.forEach(ctrl => {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "• ", size: 20, font: "Calibri" }),
+              highlightedText(ctrl, { size: 20 })
+            ]
+          })
+        );
+      });
+    } else {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "• ", size: 20, font: "Calibri" }),
+            highlightedText("No administrative controls selected", { size: 20 })
+          ]
+        })
+      );
+    }
+
+    // Add custom admin controls if present
+    if (customAdmin) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "• ", size: 20, font: "Calibri" }),
+            highlightedText(customAdmin, { size: 20 })
+          ]
+        })
+      );
+    }
+
+    children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+
+    // Hearing Protection Devices Section
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Hearing Protection Devices:", bold: true, size: 22, font: "Calibri" })],
+        spacing: { before: 200, after: 100 }
+      })
+    );
+
+    if (devices.length > 0) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "Employees are issued with the following hearing protective devices (HPDs):", size: 20, font: "Calibri" })
+          ],
+          spacing: { after: 100 }
+        })
+      );
+
+      devices.forEach(d => {
+        // Device details
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "• ", size: 20, font: "Calibri" }),
+              highlightedText(`${d.type || "Not specified"}, ${d.manufacturer || "Unknown manufacturer"} with SNR of ${d.snrValue || "N/A"}.`, { size: 20 })
+            ]
+          })
+        );
+
+        // Training status
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "• Have Employees in this area received training in the correct use of HPD? ", size: 20, font: "Calibri" }),
+              highlightedText(d.training || "No", { size: 20 })
+            ]
+          })
+        );
+
+        // Fitting status
+        if (d.fitting) {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: "• Fitting status: ", size: 20, font: "Calibri" }),
+                highlightedText(d.fitting, { size: 20 })
+              ]
+            })
+          );
+        }
+
+        // Maintenance status
+        if (d.maintenance) {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: "• Maintenance: ", size: 20, font: "Calibri" }),
+                highlightedText(d.maintenance, { size: 20 })
+              ]
+            })
+          );
+        }
+
+        // Condition
+        if (d.condition) {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: "• Condition: ", size: 20, font: "Calibri" }),
+                highlightedText(d.condition, { size: 20 })
+              ]
+            })
+          );
+        }
+
+        children.push(new Paragraph({ text: "", spacing: { after: 100 } }));
+      });
+
+      // Adequacy assessment
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "• These HPDs ", size: 20, font: "Calibri" }),
+            highlightedText("probably provide adequate protection", { size: 20 }),
+            new TextRun({ text: " against the noise rating levels in this area.", size: 20, font: "Calibri" })
+          ]
+        })
+      );
+    } else {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "• ", size: 20, font: "Calibri" }),
+            highlightedText("No HPD issued.", { size: 20 })
+          ]
+        })
+      );
+    }
+
+    children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+
+    // Prohibited Activities Section
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Prohibited Activities:", bold: true, size: 22, font: "Calibri" })],
+        spacing: { before: 200, after: 100 }
+      })
+    );
+
+    if (exposures && exposures.prohibited) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "• Have employees engaged in prohibited activities? ", size: 20, font: "Calibri" }),
+            highlightedText(exposures.prohibited, { size: 20 })
+          ]
+        })
+      );
+
+      if (exposures.prohibitedDetail) {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "• Details: ", size: 20, font: "Calibri" }),
+              highlightedText(exposures.prohibitedDetail, { size: 20 })
+            ]
+          })
+        );
+      }
+    } else {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "• Have employees engaged in prohibited activities? ", size: 20, font: "Calibri" }),
+            highlightedText("No", { size: 20 })
+          ]
+        })
+      );
+    }
+
+    children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+
+    // Concomitant Exposures Section
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Concomitant Exposures:", bold: true, size: 22, font: "Calibri" })],
+        spacing: { before: 200, after: 100 }
+      })
+    );
+
+    if (exposures && exposures.exposure) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "• Are employees exposed to Concomitant Exposures? ", size: 20, font: "Calibri" }),
+            highlightedText(exposures.exposure, { size: 20 })
+          ]
+        })
+      );
+
+      if (exposures.exposureDetail) {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "• Details: ", size: 20, font: "Calibri" }),
+              highlightedText(exposures.exposureDetail, { size: 20 })
+            ]
+          })
+        );
+      }
+    } else {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "• Are employees exposed to Concomitant Exposures? ", size: 20, font: "Calibri" }),
+            highlightedText("No", { size: 20 })
+          ]
+        })
+      );
+    }
+
+    children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+
+    // Primary Noise Sources Section
+    if (noiseSources.length > 0) {
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: "Primary Noise Sources:", bold: true, size: 22, font: "Calibri" })],
+          spacing: { before: 200, after: 100 }
+        })
+      );
+
+      noiseSources.forEach(ns => {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "• ", size: 20, font: "Calibri" }),
+              highlightedText(`${ns.source || "Unknown source"} - ${ns.type || "N/A"} - ${ns.description || "No description"}`, { size: 20 })
+            ]
+          })
+        );
+      });
+
+      children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+    }
+
+    // Additional Comments Section
+    if (comments) {
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: "Additional Comments:", bold: true, size: 22, font: "Calibri" })],
+          spacing: { before: 200, after: 100 }
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: "• ", size: 20, font: "Calibri" }),
+            highlightedText(comments, { size: 20 })
+          ]
+        }),
+        new Paragraph({ text: "", spacing: { after: 400 } })
+      );
+    }
+
+    // Add spacing before next area
+    children.push(new Paragraph({ text: "", spacing: { after: 400 } }));
   });
 
   children.push(new Paragraph({ text: "", spacing: { after: 400, before: 400 } }));
@@ -1775,16 +2239,58 @@ export async function buildWordContent(
     new Paragraph({ text: "", spacing: { after: 300 } }),
 
     new Paragraph({
-      children: [new TextRun({ text: "8.5 Programme Review and Continuous Improvement", bold: true, size: 24 })],
+      children: [new TextRun({ text: "8.5 Training", bold: true, size: 24 })],
       spacing: { before: 300, after: 100 }
     }),
-    new Paragraph({ text: "• Conduct annual hearing conservation programme effectiveness reviews" }),
-    new Paragraph({ text: "• Review noise measurement data, control effectiveness, and audiometric trends" }),
-    new Paragraph({ text: "• Update risk assessments following process changes, equipment modifications, or new findings" }),
-    new Paragraph({ text: "• Implement corrective actions for identified deficiencies" }),
-    new Paragraph({ text: "• Consult with employees and safety representatives on programme improvements" }),
-    new Paragraph({ text: "• Conduct periodic re-surveys (biennial or following significant changes)" }),
-    new Paragraph({ text: "• Benchmark against industry best practices and regulatory requirements" }),
+    new Paragraph({
+      text: "All employees exposed to noise levels ≥81 dB(A) must receive comprehensive noise awareness and hearing conservation training.",
+      spacing: { after: 100 }
+    }),
+    new Paragraph({ text: "Training should cover:" }),
+    new Paragraph({ text: "• The effects of noise on hearing and health" }),
+    new Paragraph({ text: "• The purpose and requirements of audiometric testing" }),
+    new Paragraph({ text: "• The purpose, selection, fitting, use, and maintenance of HPDs" }),
+    new Paragraph({ text: "• The purpose and interpretation of noise surveys and noise zone demarcation" }),
+    new Paragraph({ text: "• The content of the NIHL Regulations and the employer's hearing conservation programme" }),
+    new Paragraph({ text: "• The employee's right to access their own audiometric records" }),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
+
+    new Paragraph({
+      children: [new TextRun({ text: "8.6 Records", bold: true, size: 24 })],
+      spacing: { before: 300, after: 100 }
+    }),
+    new Paragraph({
+      text: "The employer must maintain comprehensive records in accordance with the NIHL Regulations, 2003:",
+      spacing: { after: 100 }
+    }),
+    new Paragraph({ text: "• Noise survey reports (retain for 40 years)" }),
+    new Paragraph({ text: "• Audiometric test results (retain for 40 years)" }),
+    new Paragraph({ text: "• Training records (dates, content, attendees)" }),
+    new Paragraph({ text: "• HPD issue and replacement records" }),
+    new Paragraph({ text: "• Equipment calibration certificates" }),
+    new Paragraph({ text: "• Risk assessments and hearing conservation programme documentation" }),
+    new Paragraph({ text: "• Employee notification letters (hearing threshold shifts, noise exposure)" }),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
+
+    new Paragraph({
+      children: [new TextRun({ text: "8.7 Workplace Monitoring", bold: true, size: 24 })],
+      spacing: { before: 300, after: 100 }
+    }),
+    new Paragraph({
+      text: "Regular workplace noise monitoring is essential to verify the ongoing effectiveness of control measures and identify any changes in noise exposure:",
+      spacing: { after: 100 }
+    }),
+    new Paragraph({ text: "• Conduct follow-up noise surveys:" }),
+    new Paragraph({ text: "  - Biennially (every 2 years) as a minimum" }),
+    new Paragraph({ text: "  - Following any process changes, equipment modifications, or layout alterations" }),
+    new Paragraph({ text: "  - Following implementation of noise control measures (to verify effectiveness)" }),
+    new Paragraph({ text: "  - If employee complaints or audiometric results suggest increased exposure" }),
+    new Paragraph({ text: "• Conduct periodic walk-through inspections to identify:" }),
+    new Paragraph({ text: "  - New or modified noise sources" }),
+    new Paragraph({ text: "  - Equipment maintenance issues contributing to noise" }),
+    new Paragraph({ text: "  - HPD usage compliance in designated noise zones" }),
+    new Paragraph({ text: "  - Effectiveness of engineering and administrative controls" }),
+    new Paragraph({ text: "• Document all monitoring activities, findings, and corrective actions" }),
     new Paragraph({ text: "", spacing: { after: 400 } })
   );
 
@@ -1799,7 +2305,15 @@ export async function buildWordContent(
       children: [new TextRun({ text: "9.0 CONCLUSION", bold: true, size: 28 })],
       spacing: { before: 400, after: 300 }
     }),
-    new Paragraph({ text: `The occupational hygiene noise survey conducted at ${data.site} for ${data.client} has identified noise exposure levels across various operational areas. The survey was performed in accordance with SANS 10083:2013 and the NIHL Regulations, 2003.` }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "The occupational hygiene noise survey conducted at ", size: 20, font: "Calibri" }),
+        highlightedText(data.site, { size: 20 }),
+        new TextRun({ text: " for ", size: 20, font: "Calibri" }),
+        highlightedText(data.client, { size: 20 }),
+        new TextRun({ text: " has identified noise exposure levels across various operational areas. The survey was performed in accordance with SANS 10083:2013 and the NIHL Regulations, 2003.", size: 20, font: "Calibri" })
+      ]
+    }),
     new Paragraph({ text: "", spacing: { after: 200 } }),
     new Paragraph({ text: "Key conclusions from this survey include:" }),
     new Paragraph({ text: "• Noise exposure levels have been quantified for all surveyed work areas" }),
@@ -1882,7 +2396,12 @@ export async function buildWordContent(
     }),
     new Paragraph({ text: "Name: _________________________________" }),
     new Paragraph({ text: "Designation: _________________________________" }),
-    new Paragraph({ text: `Company: ${data.client}` }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Company: ", size: 20, font: "Calibri" }),
+        highlightedText(data.client, { size: 20 })
+      ]
+    }),
     new Paragraph({ text: "Signature: _________________________________" }),
     new Paragraph({ text: "Date: _________________________________" }),
     new Paragraph({ text: "", spacing: { after: 400 } }),
