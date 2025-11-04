@@ -4,7 +4,7 @@ export const msalConfig: Configuration = {
   auth: {
     clientId: "b1d4d3c7-6337-48be-9748-42c1b03d59dc",
     authority: "https://login.microsoftonline.com/304a744d-e751-4784-ab75-8f3d44b8dbd5",
-    redirectUri: "http://localhost:3000", // ✅ Works in both local and Codespaces
+    redirectUri: window.location.origin, // ✅ Dynamically uses current URL (localhost, Codespaces, or production)
     navigateToLoginRequestUrl: false, // ✅ prevents reload loops after redirect
   },
   cache: {
