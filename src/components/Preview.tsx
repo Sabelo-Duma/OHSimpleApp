@@ -772,9 +772,10 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
         <ConfirmDialog
           open={completionDialogOpen}
           title="Survey Completed!"
-          message="Your survey has been successfully completed and saved. You will now be returned to the dashboard."
+          message="Survey successfully completed! Thank you!"
           confirmText="OK"
           cancelText=""
+          confirmButtonVariant="success"
           onConfirm={confirmCompleteSurvey}
           onCancel={() => setCompletionDialogOpen(false)}
         />
