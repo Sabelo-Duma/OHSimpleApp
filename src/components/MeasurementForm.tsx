@@ -6,6 +6,7 @@ import Section from "./common/Section";
 import Field from "./common/Field";
 import { SurveyData, Measurement } from "./types";
 import { validateNoiseMeasurement, validateExposureTime, getFieldError, isFieldValid } from "../utils/validation";
+import { calculateAverageLAeq, getExposureSummary } from "../utils/noiseCalculations";
 
 interface MeasurementFormProps {
   data: SurveyData;
@@ -375,9 +376,115 @@ export default function MeasurementForm({
     );
   }
 
+  // Calculate overall area exposure summary
+  const getAreaExposureSummary = () => {
+    if (measurements.length === 0) return null;
+
+    const exposureDataList = measurements.map(m => {
+      const readingValues = m.readings.map(r => parseFloat(r)).filter(v => !isNaN(v));
+      const avgLAeq = calculateAverageLAeq(readingValues);
+      const exposureTime = parseFloat(m.exposureTime) || 0;
+      const shiftDuration = parseFloat(m.shiftDuration) || 0;
+      return getExposureSummary(avgLAeq, exposureTime, shiftDuration);
+    });
+
+    // Find worst case (highest LEX,8h)
+    const worstCase = exposureDataList.reduce((max, current) =>
+      current.lex8h > max.lex8h ? current : max
+    );
+
+    // Count measurements by zone
+    const greenCount = exposureDataList.filter(d => d.zone.zone === 'green').length;
+    const orangeCount = exposureDataList.filter(d => d.zone.zone === 'orange').length;
+    const redCount = exposureDataList.filter(d => d.zone.zone === 'red').length;
+
+    return {
+      worstCase,
+      greenCount,
+      orangeCount,
+      redCount,
+      totalMeasurements: measurements.length
+    };
+  };
+
+  const areaSummary = getAreaExposureSummary();
+
   return (
     <Section key={areaKey + "-" + formInstanceId} title="Measurements">
       <p className="text-sm text-gray-500 mb-4">{getAreaName()}</p>
+
+      {/* Overall Area Exposure Summary */}
+      {areaSummary && (
+        <div className={`mb-6 p-4 border-2 rounded-lg ${
+          areaSummary.worstCase.zone.zone === 'red' ? 'bg-red-50 border-red-300' :
+          areaSummary.worstCase.zone.zone === 'orange' ? 'bg-orange-50 border-orange-300' :
+          'bg-green-50 border-green-300'
+        }`}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold">📊 Area Exposure Status</h3>
+            <span className={`px-3 py-1 rounded-lg font-bold ${areaSummary.worstCase.zone.bgColor} ${areaSummary.worstCase.zone.textColor}`}>
+              {areaSummary.worstCase.zone.label}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <div className="bg-white p-2 rounded border">
+              <div className="text-xs text-gray-600">Worst-Case LEX,8h</div>
+              <div className="text-xl font-bold">{areaSummary.worstCase.lex8h.toFixed(1)} dB(A)</div>
+            </div>
+            <div className="bg-white p-2 rounded border">
+              <div className="text-xs text-gray-600">Maximum Dose</div>
+              <div className="text-xl font-bold">{areaSummary.worstCase.dose.toFixed(0)}%</div>
+            </div>
+            <div className="bg-white p-2 rounded border">
+              <div className="text-xs text-gray-600">Total Measurements</div>
+              <div className="text-xl font-bold">{areaSummary.totalMeasurements}</div>
+            </div>
+            <div className="bg-white p-2 rounded border">
+              <div className="text-xs text-gray-600">Zone Distribution</div>
+              <div className="flex gap-1 mt-1">
+                {areaSummary.greenCount > 0 && (
+                  <span className="px-2 py-0.5 text-xs rounded bg-green-100 text-green-800 font-medium">
+                    {areaSummary.greenCount}G
+                  </span>
+                )}
+                {areaSummary.orangeCount > 0 && (
+                  <span className="px-2 py-0.5 text-xs rounded bg-orange-100 text-orange-800 font-medium">
+                    {areaSummary.orangeCount}O
+                  </span>
+                )}
+                {areaSummary.redCount > 0 && (
+                  <span className="px-2 py-0.5 text-xs rounded bg-red-100 text-red-800 font-medium">
+                    {areaSummary.redCount}R
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Compliance Status & Actions Required */}
+          <div className={`p-3 rounded ${
+            areaSummary.worstCase.compliance.severity === 'critical' ? 'bg-red-100' :
+            areaSummary.worstCase.compliance.severity === 'warning' ? 'bg-orange-100' :
+            'bg-green-100'
+          }`}>
+            <div className="font-semibold text-sm mb-1">
+              {areaSummary.worstCase.compliance.severity === 'critical' && '🚨 CRITICAL: '}
+              {areaSummary.worstCase.compliance.severity === 'warning' && '⚠️ WARNING: '}
+              {areaSummary.worstCase.compliance.severity === 'info' && '✅ SAFE: '}
+              {areaSummary.worstCase.compliance.isCompliant ? 'Compliant with SANS 10083' : 'Non-Compliant - Immediate Action Required'}
+            </div>
+            <div className="text-xs">
+              <span className="font-semibold">Required Actions:</span>
+              <ul className="list-disc list-inside mt-1">
+                {areaSummary.worstCase.compliance.actionRequired.map((action, idx) => (
+                  <li key={idx}>{action}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Shift + Exposure */}
       <div className="grid grid-cols-2 gap-4 mb-4">
@@ -524,42 +631,113 @@ export default function MeasurementForm({
       {/* Table */}
       {measurements.length > 0 && (
         <div className="mt-6">
-          <h4 className="text-lg font-semibold mb-2">Added Measurements</h4>
-          <table className="w-full border text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border px-2 py-1">Shift Duration</th>
-                <th className="border px-2 py-1">Exposure Time</th>
-                <th className="border px-2 py-1">SLM</th>
-                <th className="border px-2 py-1">Calibrator</th>
-                <th className="border px-2 py-1">Readings</th>
-                {!readOnly && <th className="border px-2 py-1">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {measurements.map((m, idx) => (
-                <tr key={idx}>
-                  <td className="border px-2 py-1">{m.shiftDuration}</td>
-                  <td className="border px-2 py-1">{m.exposureTime}</td>
-                  <td className="border px-2 py-1">{m.slmId}</td>
-                  <td className="border px-2 py-1">{m.calibratorId}</td>
-                  <td className="border px-2 py-1">{(m.readings || []).join(", ")}</td>
-                  {!readOnly && (
-                    <td className="border px-2 py-1">
-                      <div className="flex gap-2">
-                        <Button variant="secondary" onClick={() => handleEdit(idx)}>
-                          Edit
-                        </Button>
-                        <Button variant="danger" onClick={() => handleDelete(idx)}>
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  )}
+          <h4 className="text-lg font-semibold mb-2">Added Measurements & Exposure Analysis</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full border text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border px-2 py-1">#</th>
+                  <th className="border px-2 py-1">Shift (hrs)</th>
+                  <th className="border px-2 py-1">Exposure (hrs)</th>
+                  <th className="border px-2 py-1">Readings (dB)</th>
+                  <th className="border px-2 py-1">LAeq</th>
+                  <th className="border px-2 py-1 bg-blue-50">LEX,8h</th>
+                  <th className="border px-2 py-1 bg-blue-50">Dose %</th>
+                  <th className="border px-2 py-1 bg-blue-50">Zone</th>
+                  <th className="border px-2 py-1">Equipment</th>
+                  {!readOnly && <th className="border px-2 py-1">Actions</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {measurements.map((m, idx) => {
+                  // Calculate exposure metrics
+                  const readingValues = m.readings.map(r => parseFloat(r)).filter(v => !isNaN(v));
+                  const avgLAeq = calculateAverageLAeq(readingValues);
+                  const exposureTime = parseFloat(m.exposureTime) || 0;
+                  const shiftDuration = parseFloat(m.shiftDuration) || 0;
+                  const exposureData = getExposureSummary(avgLAeq, exposureTime, shiftDuration);
+
+                  // Determine row background color based on zone
+                  const rowBgColor =
+                    exposureData.zone.zone === 'red' ? 'bg-red-50' :
+                    exposureData.zone.zone === 'orange' ? 'bg-orange-50' :
+                    exposureData.zone.zone === 'green' ? 'bg-green-50' :
+                    '';
+
+                  return (
+                    <tr key={idx} className={rowBgColor}>
+                      <td className="border px-2 py-1 text-center font-medium">{idx + 1}</td>
+                      <td className="border px-2 py-1 text-center">{m.shiftDuration}</td>
+                      <td className="border px-2 py-1 text-center">{m.exposureTime}</td>
+                      <td className="border px-2 py-1 text-center text-xs">
+                        {(m.readings || []).join(", ")}
+                      </td>
+                      <td className="border px-2 py-1 text-center font-medium">
+                        {avgLAeq > 0 ? `${avgLAeq.toFixed(1)} dB(A)` : '—'}
+                      </td>
+                      <td className="border px-2 py-1 text-center font-bold bg-blue-50">
+                        {exposureData.lex8h > 0 ? `${exposureData.lex8h.toFixed(1)} dB(A)` : '—'}
+                      </td>
+                      <td className="border px-2 py-1 text-center font-medium bg-blue-50">
+                        {exposureData.dose > 0 ? `${exposureData.dose.toFixed(1)}%` : '—'}
+                      </td>
+                      <td className="border px-2 py-1 text-center bg-blue-50">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${exposureData.zone.bgColor} ${exposureData.zone.textColor}`}>
+                            {exposureData.zone.label}
+                          </span>
+                          {exposureData.compliance.level === 'limit-exceeded' && (
+                            <span className="text-xs text-red-700 font-medium">⚠️ Limit Exceeded</span>
+                          )}
+                          {exposureData.compliance.level === 'action' && (
+                            <span className="text-xs text-orange-700 font-medium">⚠️ Action Required</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="border px-2 py-1 text-xs text-gray-600">
+                        <div>SLM: {m.slmId}</div>
+                        <div>Cal: {m.calibratorId}</div>
+                      </td>
+                      {!readOnly && (
+                        <td className="border px-2 py-1">
+                          <div className="flex flex-col gap-1">
+                            <Button variant="secondary" onClick={() => handleEdit(idx)}>
+                              Edit
+                            </Button>
+                            <Button variant="danger" onClick={() => handleDelete(idx)}>
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Exposure Summary Legend */}
+          <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h5 className="text-sm font-bold mb-2">📊 Exposure Analysis Key:</h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="font-semibold">LAeq:</span> Average equivalent continuous sound level during measurement
+              </div>
+              <div>
+                <span className="font-semibold">LEX,8h:</span> Daily noise exposure normalized to 8-hour shift (SANS 10083)
+              </div>
+              <div>
+                <span className="font-semibold">Dose %:</span> Percentage of maximum permissible daily exposure (100% = limit)
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">Zones:</span>
+                <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 font-medium">Green &lt;85</span>
+                <span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-medium">Orange 85-87</span>
+                <span className="px-2 py-0.5 rounded bg-red-100 text-red-800 font-medium">Red ≥87</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
