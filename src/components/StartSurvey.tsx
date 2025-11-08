@@ -1,11 +1,12 @@
 // src/components/StartSurvey.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SurveyData } from "./types";
 import Section from "./common/Section";
 import Field from "./common/Field";
 import Button from "./common/Button";
 import ConfirmDialog from "./common/ConfirmDialog";
 import { isStepValid } from "./helpers";
+import { validateSurveyInfo, getFieldError, isFieldValid } from "../utils/validation";
 
 interface StartSurveyProps {
   data: SurveyData;
@@ -27,6 +28,21 @@ export default function StartSurvey({
   readOnly = false,
 }: StartSurveyProps) {
   const valid = isStepValid(1, data);
+
+  // Validation state
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Validate on data change
+  useEffect(() => {
+    const validation = validateSurveyInfo(data);
+    setErrors(validation.errors);
+  }, [data]);
+
+  // Handle field blur to mark as touched
+  const handleBlur = (fieldName: string) => {
+    setTouched((prev) => ({ ...prev, [fieldName]: true }));
+  };
 
   // Confirm dialog state
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -90,6 +106,10 @@ export default function StartSurvey({
             onChange={(val: string) => onChange({ client: val })}
             placeholder="e.g., Gijima Digital"
             disabled={readOnly}
+            required={true}
+            error={getFieldError("client", errors, touched)}
+            success={isFieldValid(data.client, "client", errors)}
+            onBlur={() => handleBlur("client")}
           />
         </div>
         <div className="w-1/2">
@@ -99,6 +119,10 @@ export default function StartSurvey({
             onChange={(val: string) => onChange({ project: val })}
             placeholder="e.g., Noise Study 2025"
             disabled={readOnly}
+            required={true}
+            error={getFieldError("project", errors, touched)}
+            success={isFieldValid(data.project, "project", errors)}
+            onBlur={() => handleBlur("project")}
           />
         </div>
       </div>
@@ -113,6 +137,10 @@ export default function StartSurvey({
             type="date"
             placeholder="Select Start Date"
             disabled={readOnly}
+            required={true}
+            error={getFieldError("startDate", errors, touched)}
+            success={isFieldValid(data.startDate, "startDate", errors)}
+            onBlur={() => handleBlur("startDate")}
           />
         </div>
         <div className="w-1/2">
@@ -123,6 +151,10 @@ export default function StartSurvey({
             type="date"
             placeholder="Select End Date"
             disabled={readOnly}
+            required={true}
+            error={getFieldError("endDate", errors, touched)}
+            success={isFieldValid(data.endDate, "endDate", errors)}
+            onBlur={() => handleBlur("endDate")}
           />
         </div>
       </div>
@@ -142,6 +174,10 @@ export default function StartSurvey({
           onChange={(val: string) => onChange({ site: val })}
           placeholder="e.g., Durban Plant"
           disabled={readOnly}
+          required={true}
+          error={getFieldError("site", errors, touched)}
+          success={isFieldValid(data.site, "site", errors)}
+          onBlur={() => handleBlur("site")}
         />
       </div>
 
@@ -152,6 +188,10 @@ export default function StartSurvey({
         onChange={(val: string) => onChange({ description: val })}
         placeholder="Describe the task being surveyed"
         disabled={readOnly}
+        required={true}
+        error={getFieldError("description", errors, touched)}
+        success={isFieldValid(data.description, "description", errors)}
+        onBlur={() => handleBlur("description")}
       />
 
       {/* Actions */}

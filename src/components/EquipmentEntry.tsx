@@ -1,5 +1,5 @@
 // src/components/EquipmentEntry.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SurveyData, Equipment } from "./types";
 import Section from "./common/Section";
 import Field from "./common/Field";
@@ -7,6 +7,7 @@ import SelectField from "./common/SelectField";
 import Button from "./common/Button";
 import ConfirmDialog from "./common/ConfirmDialog";
 import { isStepValid } from "./helpers";
+import { validateEquipment, validateEquipmentList, getFieldError, isFieldValid } from "../utils/validation";
 
 type EquipmentType = "" | "SLM" | "Calibrator";
 
@@ -44,6 +45,28 @@ export default function EquipmentEntry({
   });
 
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // --- Validation state ---
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [equipmentListError, setEquipmentListError] = useState<string>("");
+
+  // Validate equipment form on temp change
+  useEffect(() => {
+    const validation = validateEquipment(temp);
+    setErrors(validation.errors);
+  }, [temp]);
+
+  // Validate equipment list
+  useEffect(() => {
+    const listValidation = validateEquipmentList(data.equipment);
+    setEquipmentListError(listValidation.errors.equipment || "");
+  }, [data.equipment]);
+
+  // Handle field blur
+  const handleBlur = (fieldName: string) => {
+    setTouched((prev) => ({ ...prev, [fieldName]: true }));
+  };
 
   // --- ConfirmDialog state ---
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -88,7 +111,24 @@ export default function EquipmentEntry({
   };
 
   const addOrUpdateEquipment = () => {
-    if (!temp.type || !temp.name) return;
+    // Mark all fields as touched to show errors
+    setTouched({
+      type: true,
+      name: true,
+      serial: true,
+      pre: true,
+      post: true,
+      during: true,
+      calibrationDate: true,
+    });
+
+    // Validate the equipment
+    const validation = validateEquipment(temp);
+
+    // If there are errors, don't save
+    if (!validation.isValid) {
+      return;
+    }
 
     if (editingId) {
       const updated = data.equipment.map((eq) =>
@@ -100,6 +140,8 @@ export default function EquipmentEntry({
       onChange({ equipment: [...data.equipment, newEq] });
     }
 
+    // Reset validation state
+    setTouched({});
     resetForm();
   };
 
@@ -171,6 +213,10 @@ export default function EquipmentEntry({
                 onChange={(val) => setTemp({ ...temp, name: val })}
                 placeholder="e.g., SLM 2250"
                 disabled={readOnly}
+                required={true}
+                error={getFieldError("name", errors, touched)}
+                success={isFieldValid(temp.name, "name", errors)}
+                onBlur={() => handleBlur("name")}
               />
             </div>
             <div className="w-1/2">
@@ -180,6 +226,10 @@ export default function EquipmentEntry({
                 onChange={(val) => setTemp({ ...temp, serial: val })}
                 placeholder="e.g., SN123456"
                 disabled={readOnly}
+                required={true}
+                error={getFieldError("serial", errors, touched)}
+                success={isFieldValid(temp.serial, "serial", errors)}
+                onBlur={() => handleBlur("serial")}
               />
             </div>
           </div>
@@ -285,6 +335,8 @@ export default function EquipmentEntry({
                   onChange={(val) => setTemp({ ...temp, during: val })}
                   placeholder=""
                   disabled={readOnly}
+                  warning={getFieldError("during", errors, touched)}
+                  onBlur={() => handleBlur("during")}
                 />
                 <Field
                   label="Post (dB)"
@@ -303,6 +355,15 @@ export default function EquipmentEntry({
                   disabled={readOnly}
                 />
               </div>
+
+              {/* Calibration drift warning */}
+              {errors.calibrationDrift && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-700 text-sm font-medium">
+                    {errors.calibrationDrift}
+                  </p>
+                </div>
+              )}
             </>
           )}
 
@@ -433,13 +494,15 @@ export default function EquipmentEntry({
           )}
 
           {!readOnly && editingId !== null && (
-            <p className="text-sm text-red-500">
-              Finish editing the equipment before saving or continuing.
+            <p className="text-sm text-red-600 flex items-start">
+              <span className="mr-1">⚠️</span>
+              <span>Finish editing the equipment before saving or continuing.</span>
             </p>
           )}
-          {!readOnly && data.equipment.length === 0 && editingId === null && (
-            <p className="text-sm text-red-500">
-              Please add at least one equipment before continuing.
+          {!readOnly && equipmentListError && editingId === null && (
+            <p className="text-sm text-red-600 flex items-start">
+              <span className="mr-1">⚠️</span>
+              <span>{equipmentListError}</span>
             </p>
           )}
         </div>
