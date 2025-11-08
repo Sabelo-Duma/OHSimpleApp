@@ -4,6 +4,7 @@ import Field from "./common/Field";
 import Button from "./common/Button";
 import Section from "./common/Section";
 import { SurveyData, AreaPath } from "./types";
+import { getFieldError, isFieldValid } from "../utils/validation";
 
 interface ControlsFormProps {
   data: SurveyData;
@@ -38,6 +39,10 @@ export default function ControlsForm({
   const [customAdmin, setCustomAdmin] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  // Validation state
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const prevAreaRef = useRef<string>("");
 
@@ -66,6 +71,30 @@ export default function ControlsForm({
   const areaKey = getAreaKey();
   if (!areaKey) return null;
 
+  // Validate controls in real-time
+  useEffect(() => {
+    const newErrors: Record<string, string> = {};
+
+    // Engineering controls validation
+    if (!engineering.trim()) {
+      newErrors.engineering = "Engineering controls are required";
+    } else if (engineering.length < 5) {
+      newErrors.engineering = "Please provide more detail (at least 5 characters)";
+    }
+
+    // Administrative controls validation (at least one must be selected OR custom must be filled)
+    if (adminControls.length === 0 && !customAdmin.trim()) {
+      newErrors.adminControls = "Please select at least one administrative control or provide a custom control";
+    }
+
+    setErrors(newErrors);
+  }, [engineering, adminControls, customAdmin]);
+
+  // Handle field blur
+  const handleBlur = (fieldName: string) => {
+    setTouched((prev) => ({ ...prev, [fieldName]: true }));
+  };
+
   // ---------------------
   // Load data when area changes
   // ---------------------
@@ -78,6 +107,7 @@ export default function ControlsForm({
     setAdminControls(stored?.adminControls || []);
     setCustomAdmin(stored?.customAdmin || "");
     setDropdownOpen(false);
+    setTouched({});
   }, [areaKey]);
 
   // ---------------------
@@ -206,18 +236,31 @@ export default function ControlsForm({
         label="Engineering Controls"
         value={engineering}
         onChange={handleEngineeringChange}
-        placeholder="e.g., Isolation, Insulation, Attenuation"
+        placeholder="e.g., Isolation, Insulation, Attenuation, Damping"
         readOnly={readOnly}
+        required={true}
+        error={getFieldError("engineering", errors, touched)}
+        success={isFieldValid(engineering, "engineering", errors)}
+        onBlur={() => handleBlur("engineering")}
       />
 
       <div className="mb-4 relative" ref={dropdownRef}>
-        <label className="block font-semibold mb-1">Administrative Controls</label>
+        <label className="block font-semibold mb-1">
+          Administrative Controls <span className="text-red-500">*</span>
+        </label>
         <button
           type="button"
           className={`w-full border rounded px-3 py-2 text-left bg-white ${
             readOnly ? "cursor-not-allowed opacity-50" : ""
+          } ${
+            touched.adminControls && errors.adminControls
+              ? "border-red-500 bg-red-50"
+              : adminControls.length > 0
+              ? "border-green-500"
+              : "border-gray-300"
           }`}
           onClick={handleDropdownToggle}
+          onBlur={() => handleBlur("adminControls")}
           disabled={readOnly}
         >
           {adminControls.length
@@ -242,14 +285,22 @@ export default function ControlsForm({
             ))}
           </div>
         )}
+        {touched.adminControls && errors.adminControls && !customAdmin && (
+          <p className="text-red-600 text-sm mt-1 flex items-start">
+            <span className="mr-1">⚠️</span>
+            <span>{errors.adminControls}</span>
+          </p>
+        )}
       </div>
 
       <Field
         label="Custom Admin Control"
         value={customAdmin}
         onChange={handleCustomAdminChange}
-        placeholder={readOnly ? "No custom admin control" : "Please enter your option here..."}
+        placeholder={readOnly ? "No custom admin control" : "e.g., Job rotation, Break schedules"}
         readOnly={readOnly}
+        info={adminControls.length === 0 ? "Provide a custom control if none of the options above apply" : ""}
+        onBlur={() => handleBlur("customAdmin")}
       />
 
       <div className="flex justify-between mt-8">

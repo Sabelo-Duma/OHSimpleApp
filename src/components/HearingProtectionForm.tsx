@@ -6,6 +6,7 @@ import Button from "./common/Button";
 import Section from "./common/Section";
 import ConfirmDialog from "./common/ConfirmDialog";
 import { SurveyData, Device, AreaPath } from "./types";
+import { getFieldError, isFieldValid } from "../utils/validation";
 
 interface Props {
   data: SurveyData;
@@ -41,9 +42,63 @@ export default function HearingProtectionForm({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmCallback, setConfirmCallback] = useState<() => void>(() => () => {});
+
+  // Validation state
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const prevAreaRef = useRef<string>("");
 
   const getAreaKey = () => (selectedAreaPath ? JSON.stringify(selectedAreaPath) : "");
+
+  // Validate device fields in real-time
+  useEffect(() => {
+    if (issued === "No") {
+      setErrors({});
+      return;
+    }
+
+    const newErrors: Record<string, string> = {};
+
+    // Manufacturer validation
+    if (!manufacturer.trim()) {
+      newErrors.manufacturer = "Manufacturer is required";
+    } else if (manufacturer.length < 2) {
+      newErrors.manufacturer = "Manufacturer name must be at least 2 characters";
+    }
+
+    // SNR/NRR value validation
+    if (!snrValue.trim()) {
+      newErrors.snrValue = `${snrOrNrr} value is required`;
+    } else {
+      const value = parseFloat(snrValue);
+      if (isNaN(value)) {
+        newErrors.snrValue = "Must be a valid number";
+      } else if (value <= 0) {
+        newErrors.snrValue = "Value must be greater than 0";
+      } else if (snrOrNrr === "SNR" && (value < 10 || value > 40)) {
+        newErrors.snrValue = "⚠️ Typical SNR range is 10-40 dB. Please verify.";
+      } else if (snrOrNrr === "NRR" && (value < 15 || value > 35)) {
+        newErrors.snrValue = "⚠️ Typical NRR range is 15-35 dB. Please verify.";
+      }
+    }
+
+    // Condition comment validation (only when condition is "Poor")
+    if (condition === "Poor") {
+      if (!conditionComment.trim()) {
+        newErrors.conditionComment = "Please explain the poor condition";
+      } else if (conditionComment.length < 10) {
+        newErrors.conditionComment = "Please provide more detail (at least 10 characters)";
+      }
+    }
+
+    setErrors(newErrors);
+  }, [manufacturer, snrValue, snrOrNrr, condition, conditionComment, issued]);
+
+  // Handle field blur
+  const handleBlur = (fieldName: string) => {
+    setTouched((prev) => ({ ...prev, [fieldName]: true }));
+  };
 
   // ✅ Load stored devices when area changes
   useEffect(() => {
@@ -68,6 +123,7 @@ export default function HearingProtectionForm({
     setFitting("Yes");
     setMaintenance("Yes");
     setEditingIndex(null);
+    setTouched({});
   }, [selectedAreaPath, data.hearingProtectionDevices, data.hearingIssuedStatus]);
 
   // ✅ Auto-save issued status
@@ -247,8 +303,23 @@ export default function HearingProtectionForm({
 
   const addOrUpdateDevice = () => {
     if (readOnly) return;
-    
+
+    // Mark all fields as touched
+    setTouched({
+      deviceType: true,
+      manufacturer: true,
+      snrValue: true,
+      condition: true,
+      conditionComment: true,
+    });
+
+    // Check for required fields and validation errors
     if (!deviceType || !manufacturer || !snrValue || !condition) return;
+
+    // Check if there are any validation errors
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
 
     const newDevice: Device = {
       type: deviceType,
@@ -270,7 +341,7 @@ export default function HearingProtectionForm({
     setDevices(updatedDevices);
     setEditingIndex(null);
 
-    // Reset inputs
+    // Reset inputs and touched state
     setDeviceType("");
     setManufacturer("");
     setSnrOrNrr("SNR");
@@ -280,6 +351,7 @@ export default function HearingProtectionForm({
     setTraining("Yes");
     setFitting("Yes");
     setMaintenance("Yes");
+    setTouched({});
   };
 
   const handleEdit = (idx: number) => {
@@ -349,13 +421,17 @@ export default function HearingProtectionForm({
           onChange={handleDeviceTypeChange}
           disabled={disabled}
         />
-        <Field 
-          label="Manufacturer" 
-          value={manufacturer} 
-          onChange={handleManufacturerChange} 
-          disabled={disabled} 
-          placeholder="Enter manufacturer"
+        <Field
+          label="Manufacturer"
+          value={manufacturer}
+          onChange={handleManufacturerChange}
+          disabled={disabled}
+          placeholder="e.g., 3M, Moldex, Honeywell"
           readOnly={readOnly}
+          required={issued === "Yes"}
+          error={getFieldError("manufacturer", errors, touched)}
+          success={issued === "Yes" && isFieldValid(manufacturer, "manufacturer", errors)}
+          onBlur={() => handleBlur("manufacturer")}
         />
         <SelectField<string>
           label="SNR / NRR"
@@ -367,14 +443,19 @@ export default function HearingProtectionForm({
           onChange={handleSnrOrNrrChange}
           disabled={disabled}
         />
-        <Field 
-          label={`${snrOrNrr} Value`} 
-          value={snrValue} 
-          onChange={handleSnrValueChange} 
-          type="number" 
-          disabled={disabled} 
-          placeholder={`Enter ${snrOrNrr} value`}
+        <Field
+          label={`${snrOrNrr} Value (dB)`}
+          value={snrValue}
+          onChange={handleSnrValueChange}
+          type="number"
+          disabled={disabled}
+          placeholder={snrOrNrr === "SNR" ? "e.g., 28" : "e.g., 25"}
           readOnly={readOnly}
+          required={issued === "Yes"}
+          error={getFieldError("snrValue", errors, touched)}
+          warning={errors.snrValue && errors.snrValue.startsWith("⚠️") ? errors.snrValue : ""}
+          success={issued === "Yes" && isFieldValid(snrValue, "snrValue", errors)}
+          onBlur={() => handleBlur("snrValue")}
         />
         <SelectField<"" | "Good" | "Poor">
           label="Device Condition"
@@ -387,12 +468,16 @@ export default function HearingProtectionForm({
           disabled={disabled}
         />
         {condition === "Poor" && !disabled && (
-          <Field 
-            label="Comment on condition" 
-            value={conditionComment} 
-            onChange={handleConditionCommentChange} 
-            placeholder="Enter condition comment"
+          <Field
+            label="Comment on condition"
+            value={conditionComment}
+            onChange={handleConditionCommentChange}
+            placeholder="e.g., Torn foam, degraded seal"
             readOnly={readOnly}
+            required={true}
+            error={getFieldError("conditionComment", errors, touched)}
+            success={isFieldValid(conditionComment, "conditionComment", errors)}
+            onBlur={() => handleBlur("conditionComment")}
           />
         )}
         <SelectField<"Yes" | "No">

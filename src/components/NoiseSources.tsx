@@ -5,6 +5,7 @@ import Button from "./common/Button";
 import ConfirmDialog from "./common/ConfirmDialog";
 import Section from "./common/Section";
 import { SurveyData, NoiseEntry } from "./types";
+import { getFieldError, isFieldValid } from "../utils/validation";
 
 export interface NoiseSourcesProps {
   data: SurveyData;
@@ -37,16 +38,61 @@ export default function NoiseSources({
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmCallback, setConfirmCallback] = useState<() => void>(() => () => {});
 
+  // Validation state
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   if (!selectedAreaPath) return null;
   const areaKey = JSON.stringify(selectedAreaPath);
 
   // Get current noise sources for this area
   const noiseSources = data.noiseSourcesByArea?.[areaKey] || [];
 
+  // Validate noise source draft in real-time
+  useEffect(() => {
+    const newErrors: Record<string, string> = {};
+
+    // Source validation
+    if (!noiseDraft.source.trim()) {
+      newErrors.source = "Noise source is required";
+    } else if (noiseDraft.source.length < 2) {
+      newErrors.source = "Source name must be at least 2 characters";
+    }
+
+    // Description validation
+    if (!noiseDraft.description.trim()) {
+      newErrors.description = "Description is required";
+    } else if (noiseDraft.description.length < 5) {
+      newErrors.description = "Description must be at least 5 characters";
+    }
+
+    // Type validation (only when normal conditions = "Yes")
+    if (data.normalConditions === "Yes") {
+      if (!noiseDraft.type.trim()) {
+        newErrors.type = "Please elaborate on the normal operating conditions";
+      } else if (noiseDraft.type.length < 5) {
+        newErrors.type = "Please provide more detail (at least 5 characters)";
+      }
+    }
+
+    // MIT validation
+    if (!noiseDraft.mit.trim()) {
+      newErrors.mit = "Measurement time interval is required";
+    }
+
+    setErrors(newErrors);
+  }, [noiseDraft, data.normalConditions]);
+
+  // Handle field blur
+  const handleBlur = (fieldName: string) => {
+    setTouched((prev) => ({ ...prev, [fieldName]: true }));
+  };
+
   // ✅ Reset form when switching to a new area
   useEffect(() => {
     setNoiseDraft({ source: "", description: "", mit: "", type: "" });
     setEditingIndex(null);
+    setTouched({});
   }, [selectedAreaPath]);
 
   // ✅ ADDED: Cleanup effect to remove noise sources for deleted areas
@@ -147,14 +193,25 @@ export default function NoiseSources({
 
   const addNoiseSource = () => {
     if (readOnly) return;
-    
+
+    // Mark all fields as touched
+    setTouched({
+      source: true,
+      description: true,
+      mit: true,
+      type: true,
+    });
+
+    // Check for required fields and validation errors
     if (
       !noiseDraft.source.trim() ||
       !noiseDraft.description.trim() ||
       !noiseDraft.mit.trim() ||
-      (data.normalConditions === "Yes" && !noiseDraft.type.trim())
-    )
+      (data.normalConditions === "Yes" && !noiseDraft.type.trim()) ||
+      Object.keys(errors).length > 0
+    ) {
       return;
+    }
 
     const updatedNoiseSources = [...noiseSources];
 
@@ -173,6 +230,7 @@ export default function NoiseSources({
 
     setNoiseDraft({ source: "", description: "", mit: "", type: "" });
     setEditingIndex(null);
+    setTouched({});
     onSave();
   };
 
@@ -242,6 +300,10 @@ export default function NoiseSources({
           placeholder={readOnly ? "No elaboration" : "e.g., Equipment was running as usual"}
           disabled={data.normalConditions === "No" || readOnly}
           readOnly={readOnly}
+          required={data.normalConditions === "Yes"}
+          error={getFieldError("type", errors, touched)}
+          success={data.normalConditions === "Yes" && isFieldValid(noiseDraft.type, "type", errors)}
+          onBlur={() => handleBlur("type")}
         />
       </div>
 
@@ -250,34 +312,55 @@ export default function NoiseSources({
         label="Source"
         value={noiseDraft.source}
         onChange={handleSourceChange}
-        placeholder={readOnly ? "No source" : "e.g., Compressor"}
+        placeholder={readOnly ? "No source" : "e.g., Compressor, Press Machine"}
         readOnly={readOnly}
+        required={true}
+        error={getFieldError("source", errors, touched)}
+        success={isFieldValid(noiseDraft.source, "source", errors)}
+        onBlur={() => handleBlur("source")}
       />
       <Field
         label="Description"
         value={noiseDraft.description}
         onChange={handleDescriptionChange}
-        placeholder={readOnly ? "No description" : "e.g., Cyclic pattern"}
+        placeholder={readOnly ? "No description" : "e.g., Cyclic pattern, Continuous operation"}
         readOnly={readOnly}
+        required={true}
+        error={getFieldError("description", errors, touched)}
+        success={isFieldValid(noiseDraft.description, "description", errors)}
+        onBlur={() => handleBlur("description")}
       />
 
       {/* Measurement Time Interval */}
       <div className="mb-4">
         <label className="block font-semibold mb-1">
-          Measurement Time Interval
+          Measurement Time Interval <span className="text-red-500">*</span>
         </label>
         <select
           className={`w-full border rounded px-3 py-2 ${
             readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+          } ${
+            touched.mit && !noiseDraft.mit
+              ? "border-red-500 bg-red-50"
+              : noiseDraft.mit
+              ? "border-green-500"
+              : "border-gray-300"
           }`}
           value={noiseDraft.mit}
           onChange={(e) => handleMitChange(e.target.value)}
+          onBlur={() => handleBlur("mit")}
           disabled={!noiseDraft.source || !noiseDraft.description || readOnly}
         >
           <option value="">Select interval</option>
           <option value="Cycle / Repetition">Cycle / Repetition</option>
           <option value="Representative Period">Representative Period</option>
         </select>
+        {touched.mit && errors.mit && (
+          <p className="text-red-600 text-sm mt-1 flex items-start">
+            <span className="mr-1">⚠️</span>
+            <span>{errors.mit}</span>
+          </p>
+        )}
       </div>
 
       {/* Long +Add button */}

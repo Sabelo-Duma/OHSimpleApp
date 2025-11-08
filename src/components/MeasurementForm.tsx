@@ -3,7 +3,9 @@ import React, { useState, useEffect } from "react";
 import Button from "./common/Button";
 import ConfirmDialog from "./common/ConfirmDialog";
 import Section from "./common/Section";
+import Field from "./common/Field";
 import { SurveyData, Measurement } from "./types";
+import { validateNoiseMeasurement, validateExposureTime, getFieldError, isFieldValid } from "../utils/validation";
 
 interface MeasurementFormProps {
   data: SurveyData;
@@ -41,6 +43,48 @@ export default function MeasurementForm({
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmCallback, setConfirmCallback] = useState<() => void>(() => () => {});
   const [formInstanceId, setFormInstanceId] = useState<number>(0);
+
+  // Validation state
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [readingErrors, setReadingErrors] = useState<Record<number, string>>({});
+
+  // Validate measurements in real-time
+  useEffect(() => {
+    const newErrors: Record<string, string> = {};
+
+    // Validate exposure time
+    if (measurementDraft.shiftDuration && measurementDraft.exposureTime) {
+      const exposureValidation = validateExposureTime(
+        measurementDraft.exposureTime,
+        measurementDraft.shiftDuration
+      );
+      if (exposureValidation.errors.exposureTime) {
+        newErrors.exposureTime = exposureValidation.errors.exposureTime;
+      }
+    }
+
+    // Validate each reading
+    const newReadingErrors: Record<number, string> = {};
+    measurementDraft.readings.forEach((reading, idx) => {
+      if (reading.trim()) {
+        const noiseValidation = validateNoiseMeasurement(reading);
+        if (noiseValidation.errors.noiseLevel) {
+          newReadingErrors[idx] = noiseValidation.errors.noiseLevel;
+        } else if (noiseValidation.errors.noiseLevelInfo) {
+          newReadingErrors[idx] = noiseValidation.errors.noiseLevelInfo;
+        }
+      }
+    });
+
+    setErrors(newErrors);
+    setReadingErrors(newReadingErrors);
+  }, [measurementDraft]);
+
+  // Handle field blur
+  const handleBlur = (fieldName: string) => {
+    setTouched((prev) => ({ ...prev, [fieldName]: true }));
+  };
 
   if (!selectedAreaPath) return null;
 
@@ -232,7 +276,17 @@ export default function MeasurementForm({
 
   const addMeasurement = () => {
     if (readOnly) return;
-    
+
+    // Mark all fields as touched
+    setTouched({
+      shiftDuration: true,
+      exposureTime: true,
+      slmId: true,
+      calibratorId: true,
+      ...Object.fromEntries(measurementDraft.readings.map((_, idx) => [`reading_${idx}`, true])),
+    });
+
+    // Check for required fields
     if (
       !measurementDraft.shiftDuration.trim() ||
       !measurementDraft.exposureTime.trim() ||
@@ -240,8 +294,22 @@ export default function MeasurementForm({
       !measurementDraft.calibratorId.trim() ||
       measurementDraft.readings.length === 0 ||
       measurementDraft.readings.some((r) => !r.trim())
-    )
+    ) {
       return;
+    }
+
+    // Check for validation errors
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    // Check if any readings have errors (excluding info messages)
+    const hasReadingErrors = Object.values(readingErrors).some(
+      (err) => err && !err.startsWith("ℹ️")
+    );
+    if (hasReadingErrors) {
+      return;
+    }
 
     const updated = [...measurements];
     if (editingIndex !== null) {
@@ -313,30 +381,30 @@ export default function MeasurementForm({
 
       {/* Shift + Exposure */}
       <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
-          <label className="block mb-1 text-sm">Shift Duration (hrs)</label>
-          <input
-            type="number"
-            className={`w-full border rounded px-2 py-2 text-sm ${
-              readOnly ? "bg-gray-100 cursor-not-allowed" : ""
-            }`}
-            value={measurementDraft.shiftDuration}
-            onChange={(e) => handleShiftDurationChange(e.target.value)}
-            disabled={readOnly}
-          />
-        </div>
-        <div>
-          <label className="block mb-1 text-sm">Exposure Time (hrs)</label>
-          <input
-            type="number"
-            className={`w-full border rounded px-2 py-2 text-sm ${
-              readOnly ? "bg-gray-100 cursor-not-allowed" : ""
-            }`}
-            value={measurementDraft.exposureTime}
-            onChange={(e) => handleExposureTimeChange(e.target.value)}
-            disabled={readOnly}
-          />
-        </div>
+        <Field
+          label="Shift Duration (hrs)"
+          type="number"
+          value={measurementDraft.shiftDuration}
+          onChange={handleShiftDurationChange}
+          placeholder="e.g., 8"
+          disabled={readOnly}
+          required={true}
+          error={touched.shiftDuration && !measurementDraft.shiftDuration ? "Shift duration is required" : ""}
+          success={!!measurementDraft.shiftDuration && !errors.shiftDuration}
+          onBlur={() => handleBlur("shiftDuration")}
+        />
+        <Field
+          label="Exposure Time (hrs)"
+          type="number"
+          value={measurementDraft.exposureTime}
+          onChange={handleExposureTimeChange}
+          placeholder="e.g., 8"
+          disabled={readOnly}
+          required={true}
+          error={getFieldError("exposureTime", errors, touched) || (touched.exposureTime && !measurementDraft.exposureTime ? "Exposure time is required" : "")}
+          success={!!measurementDraft.exposureTime && !errors.exposureTime}
+          onBlur={() => handleBlur("exposureTime")}
+        />
       </div>
 
       {/* Measurement Count */}
@@ -361,22 +429,48 @@ export default function MeasurementForm({
       {/* Readings */}
       {measurementDraft.areaLeq.length > 0 && (
         <div className="mb-4">
-          <label className="block mb-1 text-sm">Readings</label>
+          <label className="block mb-1 text-sm font-medium">
+            Noise Level Readings (dB(A)) <span className="text-red-500">*</span>
+          </label>
           <div className="flex gap-2 flex-wrap">
-            {measurementDraft.areaLeq.map((label, idx) => (
-              <input
-                key={idx}
-                type="number"
-                value={measurementDraft.readings[idx] || ""}
-                placeholder={label}
-                onChange={(e) => handleReadingChange(idx, e.target.value)}
-                className={`w-16 border rounded px-2 py-1 text-sm text-center ${
-                  readOnly ? "bg-gray-100 cursor-not-allowed" : ""
-                }`}
-                disabled={readOnly}
-              />
-            ))}
+            {measurementDraft.areaLeq.map((label, idx) => {
+              const hasError = readingErrors[idx] && readingErrors[idx].startsWith("⚠️") && !readingErrors[idx].startsWith("ℹ️");
+              const hasInfo = readingErrors[idx] && readingErrors[idx].startsWith("ℹ️");
+              return (
+                <div key={idx} className="flex flex-col">
+                  <input
+                    type="number"
+                    value={measurementDraft.readings[idx] || ""}
+                    placeholder={label}
+                    onChange={(e) => handleReadingChange(idx, e.target.value)}
+                    onBlur={() => handleBlur(`reading_${idx}`)}
+                    className={`w-20 border rounded px-2 py-1 text-sm text-center ${
+                      readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+                    } ${
+                      hasError
+                        ? "border-red-500 bg-red-50"
+                        : measurementDraft.readings[idx]
+                        ? "border-green-500"
+                        : "border-gray-300"
+                    }`}
+                    disabled={readOnly}
+                  />
+                  {touched[`reading_${idx}`] && readingErrors[idx] && (
+                    <span
+                      className={`text-xs mt-1 ${
+                        hasInfo ? "text-blue-600" : "text-red-600"
+                      }`}
+                    >
+                      {readingErrors[idx].replace(/^[⚠️ℹ️]\s*/, "")}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Typical range: 30-120 dB(A). Values outside this range will be flagged.
+          </p>
         </div>
       )}
 

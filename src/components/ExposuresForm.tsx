@@ -5,6 +5,7 @@ import Field from "./common/Field";
 import Button from "./common/Button";
 import Section from "./common/Section";
 import { SurveyData, AreaPath } from "./types";
+import { getFieldError, isFieldValid } from "../utils/validation";
 
 interface ExposuresFormProps {
   data: SurveyData;
@@ -32,7 +33,41 @@ export default function ExposuresForm({
     prohibitedDetail: "",
   });
 
+  // Validation state
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const prevAreaRef = useRef<string>("");
+
+  // Validate exposures in real-time
+  useEffect(() => {
+    const newErrors: Record<string, string> = {};
+
+    // Validate exposure detail if "Yes" is selected
+    if (exposures.exposure === "Yes") {
+      if (!exposures.exposureDetail.trim()) {
+        newErrors.exposureDetail = "Please provide details about concomitant exposures";
+      } else if (exposures.exposureDetail.length < 10) {
+        newErrors.exposureDetail = "Please provide more detailed information (at least 10 characters)";
+      }
+    }
+
+    // Validate prohibited detail if "Yes" is selected
+    if (exposures.prohibited === "Yes") {
+      if (!exposures.prohibitedDetail.trim()) {
+        newErrors.prohibitedDetail = "Please provide details about prohibited activities";
+      } else if (exposures.prohibitedDetail.length < 10) {
+        newErrors.prohibitedDetail = "Please provide more detailed information (at least 10 characters)";
+      }
+    }
+
+    setErrors(newErrors);
+  }, [exposures]);
+
+  // Handle field blur
+  const handleBlur = (fieldName: string) => {
+    setTouched((prev) => ({ ...prev, [fieldName]: true }));
+  };
 
   // ✅ Use JSON.stringify like other forms
   const getAreaKey = () => {
@@ -195,8 +230,12 @@ export default function ExposuresForm({
         value={exposures.exposureDetail}
         onChange={handleExposureDetailChange}
         disabled={exposures.exposure !== "Yes" || readOnly}
-        placeholder="Describe exposure details"
+        placeholder="Describe exposure details (e.g., vibration, heat, chemicals)"
         readOnly={readOnly}
+        required={exposures.exposure === "Yes"}
+        error={getFieldError("exposureDetail", errors, touched)}
+        success={exposures.exposure === "Yes" && isFieldValid(exposures.exposureDetail, "exposureDetail", errors)}
+        onBlur={() => handleBlur("exposureDetail")}
       />
 
       <div className="font-semibold text-gray-800 mt-4 mb-2">Prohibited Activities</div>
@@ -215,8 +254,12 @@ export default function ExposuresForm({
         value={exposures.prohibitedDetail}
         onChange={handleProhibitedDetailChange}
         disabled={exposures.prohibited !== "Yes" || readOnly}
-        placeholder="Describe prohibited actions"
+        placeholder="Describe prohibited actions (e.g., no smoking, no welding)"
         readOnly={readOnly}
+        required={exposures.prohibited === "Yes"}
+        error={getFieldError("prohibitedDetail", errors, touched)}
+        success={exposures.prohibited === "Yes" && isFieldValid(exposures.prohibitedDetail, "prohibitedDetail", errors)}
+        onBlur={() => handleBlur("prohibitedDetail")}
       />
 
       <div className="flex justify-between mt-6">
