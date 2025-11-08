@@ -78,6 +78,72 @@ function headerCell(text: string, options?: { colSpan?: number }): TableCell {
 }
 
 /**
+ * Helper function to create section header in ReportData.txt style
+ * Two-cell table with blue background (#1a3b68) and white text
+ */
+function createSectionHeader(sectionNumber: string, sectionTitle: string): Table {
+  return new Table({
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: sectionNumber,
+                    bold: true,
+                    color: "FFFFFF",
+                    size: 40, // 20pt
+                    font: "Calibri",
+                  })
+                ],
+                alignment: AlignmentType.CENTER,
+              })
+            ],
+            width: { size: 7, type: WidthType.PERCENTAGE },
+            shading: {
+              fill: "1A3B68",
+              type: ShadingType.CLEAR,
+            },
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: sectionTitle,
+                    bold: true,
+                    color: "FFFFFF",
+                    size: 40, // 20pt
+                    font: "Calibri",
+                  })
+                ],
+                alignment: AlignmentType.CENTER,
+              })
+            ],
+            width: { size: 93, type: WidthType.PERCENTAGE },
+            shading: {
+              fill: "1A3B68",
+              type: ShadingType.CLEAR,
+            },
+          }),
+        ],
+      }),
+    ],
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: { style: BorderStyle.NONE, size: 0 },
+      bottom: { style: BorderStyle.NONE, size: 0 },
+      left: { style: BorderStyle.NONE, size: 0 },
+      right: { style: BorderStyle.NONE, size: 0 },
+      insideHorizontal: { style: BorderStyle.NONE, size: 0 },
+      insideVertical: { style: BorderStyle.NONE, size: 0 },
+    },
+  });
+}
+
+/**
  * Checks if a given step in the survey is valid
  */
 export function isStepValid(step: number, data: SurveyData): boolean {
@@ -245,167 +311,314 @@ export async function buildWordContent(
   }
 
   // ====================================================================
-  // STATEMENT PAGE 1 - Survey Details and Disclaimers
+  // COVER PAGE - Formal title page matching ReportData.txt format
   // ====================================================================
   children.push(
+    // Header with client and site info
     new Paragraph({
-      children: [new TextRun({ text: "OCCUPATIONAL HYGIENE SERVICES", bold: true, size: 32 })],
+      children: [
+        new TextRun({ text: data.client, bold: true, size: 28, font: "Calibri", color: "00008B", highlight: "yellow" }),
+        new TextRun({ text: " | ", size: 28, font: "Calibri", color: "00008B" }),
+        new TextRun({ text: data.site, bold: true, size: 28, font: "Calibri", color: "00008B", highlight: "yellow" }),
+        new TextRun({ text: " | ", size: 28, font: "Calibri", color: "00008B" }),
+        new TextRun({ text: data.project, bold: true, size: 28, font: "Calibri", color: "00008B", highlight: "yellow" })
+      ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 200 }
     }),
-    new Paragraph({
-      children: [new TextRun({ text: "NOISE SURVEY REPORT", bold: true, size: 28 })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 100 }
-    }),
+
+    // Digital signature line
     new Paragraph({
       children: [
-        new TextRun({ text: "Conducted for: ", size: 22, font: "Calibri" }),
-        highlightedText(data.client, { size: 22 })
-      ],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 100 }
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({ text: "Site: ", size: 22, font: "Calibri" }),
-        highlightedText(data.site, { size: 22 })
-      ],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 100 }
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({ text: "Survey Period: ", size: 22, font: "Calibri" }),
-        highlightedText(`${data.startDate} to ${data.endDate}`, { size: 22 })
+        new TextRun({
+          text: "Digitally Signed by Altron Security: Technical Signatory",
+          bold: true,
+          italics: true,
+          size: 20,
+          font: "Calibri",
+          color: "00008B"
+        })
       ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 }
     }),
 
-    new Paragraph({ text: "", spacing: { after: 200 } }),
+    // Main title
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "Noise Survey for Hearing Conservation Purposes",
+          bold: true,
+          size: 52, // 26pt
+          font: "Calibri"
+        })
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 300 }
+    }),
 
-    new Paragraph({
-      children: [new TextRun({ text: "Project Details:", bold: true, size: 24, font: "Calibri" })],
-      spacing: { after: 100 }
-    }),
+    // "For" label
     new Paragraph({
       children: [
-        new TextRun({ text: "Client: ", size: 20, font: "Calibri" }),
-        highlightedText(data.client, { size: 20 })
-      ]
+        new TextRun({
+          text: "For",
+          bold: true,
+          size: 28, // 14pt
+          font: "Calibri"
+        })
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 }
     }),
+
+    // Client, Site, and Department
     new Paragraph({
       children: [
-        new TextRun({ text: "Project Reference: ", size: 20, font: "Calibri" }),
-        highlightedText(data.project, { size: 20 })
-      ]
+        highlightedText(data.client, { bold: true, size: 52 }),
+        new TextRun({ text: ", ", bold: true, size: 52, font: "Calibri" }),
+        highlightedText(data.site, { bold: true, size: 52 }),
+        new TextRun({ text: " - from ", bold: true, size: 52, font: "Calibri" }),
+        highlightedText(data.description || "Department", { bold: true, size: 52 })
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 }
     }),
+
+    // Survey dates
     new Paragraph({
       children: [
-        new TextRun({ text: "Site Location: ", size: 20, font: "Calibri" }),
-        highlightedText(data.site, { size: 20 })
-      ]
+        highlightedText(`${data.startDate} to ${data.endDate}`, { bold: true, size: 28 })
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 }
     }),
+
+    // Project title
     new Paragraph({
       children: [
-        new TextRun({ text: "Survey Type: ", size: 20, font: "Calibri" }),
-        highlightedText(data.surveyType, { size: 20 })
-      ]
+        highlightedText(data.project, { bold: true, size: 28 })
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 800 }
     }),
-    new Paragraph({
-      children: [
-        new TextRun({ text: "Survey Dates: ", size: 20, font: "Calibri" }),
-        highlightedText(`${data.startDate} to ${data.endDate}`, { size: 20 })
-      ]
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({ text: `Report Date: ${new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'long', year: 'numeric' })}`, size: 20, font: "Calibri" })
-      ]
-    }),
+
+    // Page break before Statement Page
+    new Paragraph({ children: [new PageBreak()] })
+  );
+
+  // ====================================================================
+  // STATEMENT PAGE 1 - Survey Details and Disclaimers
+  // ====================================================================
+  children.push(
+    // Blue header for Statement Page 1
+    createSectionHeader("", "Statement Page (1)"),
     new Paragraph({ text: "", spacing: { after: 300 } }),
 
+    // Introduction paragraph
     new Paragraph({
-      children: [new TextRun({ text: "AIA Approval", bold: true, size: 22 })],
-      spacing: { after: 100, before: 200 }
-    }),
-    new Paragraph({
-      text: "This report has been approved by an Approved Inspection Authority (AIA) in terms of the Mine Health and Safety Act, 1996 (Act 29 of 1996) Section 13(3). The survey and report comply with all regulatory requirements for occupational hygiene noise assessments.",
+      children: [
+        new TextRun({ text: "This Noise Survey for Hearing Conservation Purposes was conducted by ", size: 20, font: "Calibri" }),
+        highlightedText(data.description || "Gijima OHES Personnel", { size: 20 }),
+        new TextRun({ text: " on behalf of Gijima Occupational Hygiene and Environmental Services at ", size: 20, font: "Calibri" }),
+        highlightedText(data.client, { size: 20 }),
+        new TextRun({ text: ", ", size: 20, font: "Calibri" }),
+        highlightedText(data.site, { size: 20 }),
+        new TextRun({ text: " during ", size: 20, font: "Calibri" }),
+        highlightedText(`${data.startDate} to ${data.endDate}`, { size: 20 }),
+        new TextRun({ text: ".", size: 20, font: "Calibri" })
+      ],
       spacing: { after: 200 }
     }),
 
+    // AIA Approval
     new Paragraph({
-      children: [new TextRun({ text: "Protection of Personal Information Act (POPIA) Compliance", bold: true, size: 22 })],
-      spacing: { after: 100, before: 200 }
-    }),
-    new Paragraph({
-      text: "This report has been prepared in full compliance with the Protection of Personal Information Act, 2013 (Act 4 of 2013). All personal information contained herein is processed lawfully, collected for specific purposes, and stored securely. Individual employee data, where included, is anonymized or aggregated to protect privacy while maintaining the integrity of the assessment.",
+      text: "Gijima Occupational Hygiene and Environmental Services is a Department of Employment and Labour Approved Inspection Authority (AIA) Approval No: OH0029 - CI 017.",
       spacing: { after: 200 }
     }),
 
+    // POPI Act Compliance
     new Paragraph({
-      children: [new TextRun({ text: "Disclaimer (1) - Scope of Assessment", bold: true, size: 22 })],
-      spacing: { after: 100, before: 200 }
-    }),
-    new Paragraph({
-      text: "The inspection/tests forming part of this certificate were carried out at the time and under the conditions as specified under the prevailing circumstances. These results do not constitute a conformity assessment to a system standard, unless otherwise stated. Inspection results relate only to the items tested. This report reflects noise conditions as they existed during the survey period and may not represent conditions at other times or under different operational circumstances.",
+      text: "Gijima OHES is committed to protecting the privacy and confidentiality of all its clients and aims to ensure compliance with the legal requirements of the POPI Act. Therefore, Gijima will not disclose such data to any third parties except if agreed upon in writing between the client and Gijima OHES or where legislation requires the disclosure of such information to a legally recognized institution, Government Department OR to comply to the South African National Accreditation System's (SANAS) ISO/IEC 17020 assessment requirements.",
       spacing: { after: 200 }
     }),
 
+    // Inspection requirements
     new Paragraph({
-      children: [new TextRun({ text: "Disclaimer (2) - Professional Recommendations", bold: true, size: 22 })],
-      spacing: { after: 100, before: 200 }
+      text: "Occupational Hygiene Inspection/s (survey/s) as reflected in this report, were conducted in accordance with methods, standards and the scope of work as contemplated in applicable legislation and the contractual, quotation or tender requirements, as agreed with the client, before commencement of such inspection/s (survey/s). Should Gijima OHES deviate from the afore-mentioned requirements for inspection work (survey/s), it shall do so with the full consent and approval of the client, verbally and in writing. Gijima OHES shall not be held liable for any losses suffered by the client or litigation, because of any third-party interpretation of results, conclusions and findings as stipulated in this report.",
+      spacing: { after: 200 }
     }),
+
+    // Recommendations disclaimer
     new Paragraph({
-      text: "The recommendations made in this report are based on professional opinions formed during the survey, taking into account the limitations described. These recommendations represent best practice guidance and do not necessarily constitute legal requirements. The client should determine whether implementation is necessary based on their own risk assessment, legal obligations, and operational context. Gijima OHES does not accept liability for decisions made based on this report without consultation.",
+      text: "Recommendations (Disclaimer (2)) made in this report are made in good faith and every effort was made to ensure the professional integrity thereof. The final responsibility, however, still lies with the client to ensure the suitability and correctness thereof, prior to implementation. Gijima Occupational Hygiene Services shall in no way be held liable for any losses suffered by the client as a result of the implementation of any of these recommendations.",
+      spacing: { after: 200 }
+    }),
+
+    // SANAS accreditation note
+    new Paragraph({
+      text: "If results in this report are marked as not SANAS accredited, refer to Disclaimer (1). The entire report and results are subject to strict quality control measures in accordance with the Quality System of Gijima OHES and is approved and verified by a Technical Signatory (registered Occupational Hygienist as per requirement(s) of the Department of Employment and Labour, the Southern African Institute for Occupational Hygiene (SAIOH) and the South African National Accreditation System (SANAS)).",
+      spacing: { after: 200 }
+    }),
+
+    // Reference to Statement Page 2
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Please refer to the Statement page 2 for the Schedule of Accreditation/the scope of work as well as ", bold: true, size: 20, font: "Calibri" }),
+        new TextRun({ text: "Disclaimers.", bold: true, size: 20, font: "Calibri", color: "FF0000" })
+      ],
+      spacing: { after: 200 }
+    }),
+
+    // Digital signature info
+    new Paragraph({
+      text: "Where applicable, reports are digitally signed, the signature is secure and has been authenticated by Altron Security (previously known as LAWTrust). Altron Security is an accredited authentication service provider under the requirements of the Electronic Communications and Transaction Act 25 of 2002. Although Gijima OHES provides and accepts the use of reproductions in electronic format, it should be noted that all reproductions of this report that do not bear the authenticated digital (or original) signature of the responsible Technical Signatory cannot be used for the purposes of legal records and proceedings.",
+      spacing: { after: 200 }
+    }),
+
+    // Publication notice
+    new Paragraph({
+      text: "Please note that if this report is published or reproduced by the client, it must be in full, unless prior written approval for the publication or reproduction in abridged form is granted by Gijima OHES. Should the client disclose any report or part thereof to any third party without the consent of Gijima OHES, Gijima shall not be held liable for any losses or litigation suffered by the client in this regard.",
+      spacing: { after: 200 }
+    }),
+
+    // Contact info
+    new Paragraph({
+      children: [
+        new TextRun({ text: "For a copy of Gijima OHES's Quality Policy Statement, Terms and Conditions, Complaints and Appeals Procedure, please contact our offices at ", bold: true, size: 20, font: "Calibri" }),
+        new TextRun({ text: "ohes@gijima.com", bold: true, size: 20, font: "Calibri", underline: {} }),
+        new TextRun({ text: ".", bold: true, size: 20, font: "Calibri" })
+      ],
       spacing: { after: 300 }
-    })
-  );
-
-  // SANAS Accreditation Scope Table
-  children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "SANAS Accreditation", bold: true, size: 22 })],
-      spacing: { after: 100, before: 300 }
     }),
+
+    // Scope of accreditation header
     new Paragraph({
-      text: "Gijima Occupational Hygiene and Environmental Services (Pty) Ltd is accredited by the South African National Accreditation System (SANAS) under accreditation certificate number OH-001 in terms of ISO/IEC 17020:2012 for the following scope:",
+      children: [new TextRun({ text: "Scope of accreditation as listed in the Schedule of Accreditation", bold: true, size: 22, font: "Calibri" })],
+      spacing: { after: 100, before: 200 }
+    }),
+
+    new Paragraph({
+      text: "Gijima is accredited in accordance with the recognised International Standard: ISO/IEC 17020:2012 and is therefore a South African National Accreditation System (SANAS) Inspection Body. The accreditation demonstrates technical competency for a defined scope and the operation of a management system.",
       spacing: { after: 200 }
+    }),
+
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "Gijima is an accredited facility for the full scope of work that is required by the Department of Employment and Labour for Inspection Bodies.",
+          italics: true,
+          size: 20,
+          font: "Calibri"
+        })
+      ],
+      spacing: { after: 200 }
+    }),
+
+    new Paragraph({
+      children: [new TextRun({ text: "Table 1: SCOPE OF ACCREDITATION", bold: true, size: 22, font: "Calibri" })],
+      spacing: { after: 100 }
     })
   );
 
-  // SANAS Scope Table
-  const sanasTableRows: TableRow[] = [
+  // SANAS Accreditation Scope Table - OHS Act Regulated (Statement Page 1)
+  const sanasTable1Rows: TableRow[] = [
     new TableRow({
       children: [
-        headerCell("Inspection Activity"),
-        headerCell("Scope Description"),
-      ],
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "FIELD OF INSPECTION - OHS Act REGULATED", bold: true, color: "FFFFFF", size: 20, font: "Calibri" })],
+              alignment: AlignmentType.LEFT
+            })
+          ],
+          shading: { fill: "1A3B68", type: ShadingType.CLEAR },
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
     }),
     new TableRow({
       children: [
-        new TableCell({ children: [new Paragraph("Occupational Hygiene Noise Assessment")] }),
-        new TableCell({ children: [new Paragraph("Assessment of occupational noise exposure in accordance with SANS 10083 and the Noise-Induced Hearing Loss Regulations, 2003. Including noise zoning, dosimetry, and exposure quantification.")] }),
-      ],
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "THE SCOPE OF WORK WHICH IS INCLUDED IN THE SANAS SCHEDULE OF ACCREDITATION FOR GIJIMA IS:", bold: true, size: 20, font: "Calibri" })],
+              alignment: AlignmentType.LEFT
+            })
+          ],
+          shading: { fill: "DAEEF3", type: ShadingType.CLEAR },
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
     }),
     new TableRow({
       children: [
-        new TableCell({ children: [new Paragraph("Hearing Conservation Programme Evaluation")] }),
-        new TableCell({ children: [new Paragraph("Evaluation of hearing conservation programmes, hearing protective devices (HPD), engineering and administrative controls, and medical surveillance programmes.")] }),
-      ],
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Asbestos Abatement ", bold: true, size: 20, font: "Calibri" }),
+                new TextRun({ text: "Regulations, Government Notice No. R. 11196 of November 2020. ", size: 20, font: "Calibri" }),
+                new TextRun({ text: "Regulations 4: Inventory of asbestos in place, Section 2, Regulations 5 Asbestos Risk Assessment Section 7, Regulation 13: Duties of approved inspection authorities for asbestos work, Regulation 15: Plan of work Section 2 I, Regulation 16: Air Monitoring and Regulation 22: Asbestos Clearance Certificate", bold: true, size: 20, font: "Calibri" })
+              ]
+            })
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
     }),
     new TableRow({
       children: [
-        new TableCell({ children: [new Paragraph("ISO/IEC 17020:2012 Type A Inspection Body")] }),
-        new TableCell({ children: [new Paragraph("Independent third-party occupational hygiene inspections with no design, manufacturing, supply, or maintenance involvement in the inspected activities.")] }),
-      ],
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Lead ", bold: true, size: 20, font: "Calibri" }),
+                new TextRun({ text: "Regulation, Government Notice No. R 236 of 28 February 2002. ", size: 20, font: "Calibri" }),
+                new TextRun({ text: "Regulation 7: Air Monitoring, Regulation 14: Maintenance of Control measures.", bold: true, size: 20, font: "Calibri" })
+              ]
+            })
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Noise-Induced Hearing Loss ", bold: true, size: 20, font: "Calibri" }),
+                new TextRun({ text: "Regulation, Government Notice No. R 307 of 07 March 2003. ", size: 20, font: "Calibri" }),
+                new TextRun({ text: "Regulation 7: Noise Monitoring.", bold: true, size: 20, font: "Calibri" })
+              ]
+            })
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Regulations for Hazardous Chemical Agents", bold: true, size: 20, font: "Calibri" }),
+                new TextRun({ text: ", Government Notice No. R 11266 of 31 March 2021. ", size: 20, font: "Calibri" }),
+                new TextRun({ text: "Regulation 6: Air Monitoring, Regulation 12: Maintenance of Control measures.", bold: true, size: 20, font: "Calibri" })
+              ]
+            })
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
     }),
   ];
 
   children.push(
     new Table({
-      rows: sanasTableRows,
+      rows: sanasTable1Rows,
       width: { size: 100, type: WidthType.PERCENTAGE },
       borders: {
         top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
@@ -413,27 +626,183 @@ export async function buildWordContent(
         left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
         right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
         insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-        insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
       },
     }),
     new Paragraph({ text: "", spacing: { after: 200 } }),
     new Paragraph({
-      text: "Accreditation demonstrates technical competence, impartiality, and consistent operation in accordance with internationally recognized standards.",
-      spacing: { after: 400 }
+      children: [
+        new TextRun({
+          text: "Statement Page Continues on next page",
+          bold: true,
+          italics: true,
+          size: 20,
+          font: "Calibri"
+        })
+      ],
+      spacing: { after: 300 }
     })
   );
 
-  // Page break
+  // Page break before Statement Page 2
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
+  // ====================================================================
+  // STATEMENT PAGE 2 - SANAS Voluntary Scope and Disclaimers
+  // ====================================================================
+  children.push(
+    // Blue header for Statement Page 2
+    createSectionHeader("", "Statement Page (2)"),
+    new Paragraph({ text: "", spacing: { after: 200 } })
+  );
+
+  // SANAS Voluntary Scope Table
+  const sanasTable2Rows: TableRow[] = [
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "FIELD OF INSPECTION - VOLUNTARY", bold: true, color: "FFFFFF", size: 20, font: "Calibri" })],
+              alignment: AlignmentType.LEFT
+            })
+          ],
+          shading: { fill: "1A3B68", type: ShadingType.CLEAR },
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "THE SCOPE OF WORK WHICH IS INCLUDED IN THE SANAS SCHEDULE OF ACCREDITATION FOR GIJIMA IS:", bold: true, size: 20, font: "Calibri" })],
+              alignment: AlignmentType.LEFT
+            })
+          ],
+          shading: { fill: "DAEEF3", type: ShadingType.CLEAR },
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Supply of services as an Inspection Body for the measurement of occupational exposure to Airborne Contaminants (Vapours, gases and aerosols such as dust, mists, fumes and fibres, including asbestos fibres as per the ", bold: true, size: 20, font: "Calibri" }),
+                new TextRun({ text: "Asbestos Abatement ", bold: true, size: 20, font: "Calibri" }),
+                new TextRun({ text: "Regulations, Government Notice No. R. 11196 of November 2020.", bold: true, size: 20, font: "Calibri" })
+              ]
+            })
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Supply of services as an Inspection Body for the examination and tests of Engineering Control Measures", bold: true, size: 20, font: "Calibri" })]
+            })
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Supply of services as an Inspection Body for the measurement of Noise Levels", bold: true, size: 20, font: "Calibri" })]
+            })
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
+    }),
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: "Supply of services as an Inspection Body for the measurement of occupational exposure to Airborne Contaminants", bold: true, size: 20, font: "Calibri" })]
+            })
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE }
+        })
+      ]
+    }),
+  ];
+
+  children.push(
+    new Table({
+      rows: sanasTable2Rows,
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+        bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+        left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+        right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      },
+    }),
+    new Paragraph({ text: "", spacing: { after: 300 } })
+  );
+
+  // Disclaimers section on Statement Page 2
+  children.push(
+    new Paragraph({
+      children: [new TextRun({ text: "Disclaimers", bold: true, size: 22, font: "Calibri" })],
+      spacing: { after: 100, before: 200 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: "When Gijima perform any other inspections or surveys that are not part of the Schedule of Accreditation, those Results in a report will be indicated as such -", bold: true, size: 20, font: "Calibri" })],
+      spacing: { after: 100 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: "Not SANAS Accredited", bold: true, italics: true, size: 20, font: "Calibri" })],
+      spacing: { after: 100 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: "It includes the following Disclaimer (1)", bold: true, size: 20, font: "Calibri" })],
+      spacing: { after: 100 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: '"Results marked "Not SANAS Accredited" in this report are not included in the SANAS Schedule of Accreditation for this inspection body" (1)', italics: true, size: 20, font: "Calibri" })],
+      spacing: { after: 200 }
+    }),
+    new Paragraph({
+      text: "Although results are not part of the schedule of accreditation and Gijima is not an accredited facility for such work, the entire report and results are subject to strict quality control measures in accordance with the Quality Management System of Gijima OHES.",
+      spacing: { after: 300 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: "This report contains opinions, interpretations, recommendations, or other material relating to investigational activities.", bold: true, size: 20, font: "Calibri" })],
+      spacing: { after: 100, before: 200 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: "Disclaimer (2)", bold: true, size: 20, font: "Calibri" })],
+      spacing: { after: 100 }
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: '"Opinions and interpretations expressed herein are outside the scope of SANAS accreditation" (2)', italics: true, size: 20, font: "Calibri" })],
+      spacing: { after: 300 }
+    })
+  );
+
+  // Page break before Executive Summary
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
   // ====================================================================
   // SECTION 1.0 - EXECUTIVE SUMMARY
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "1.0 EXECUTIVE SUMMARY", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    }),
+    createSectionHeader("1.0", "Executive Summary"),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
 
     new Paragraph({
       children: [new TextRun({ text: "1.1 Introduction", bold: true, size: 24 })],
@@ -593,10 +962,8 @@ export async function buildWordContent(
   // SECTION 2.0 - TABLE OF CONTENTS (Matching Reference Document)
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "2.0 TABLE OF CONTENTS", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    }),
+    createSectionHeader("2.0", "Table of Contents"),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
     new Paragraph({
       children: [new TextRun({ text: "1.0  Executive Summary", bold: false, size: 22 })],
       spacing: { after: 50 }
@@ -685,10 +1052,8 @@ export async function buildWordContent(
   // SECTION 3.0 - LIST OF TABLES AND NOISE DIAGRAMS
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "3.0 LIST OF TABLES AND NOISE DIAGRAMS", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    }),
+    createSectionHeader("3.0", "List of Tables and Noise Diagrams"),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
     new Paragraph({
       children: [new TextRun({ text: "3.1 List of Tables", bold: true, size: 24 })],
       spacing: { before: 200, after: 100 }
@@ -710,10 +1075,8 @@ export async function buildWordContent(
   // SECTION 4.0 - LIST OF ABBREVIATIONS, TERMS, FORMULAE AND REFERENCES
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "4.0 LIST OF ABBREVIATIONS, TERMS, FORMULAE AND REFERENCES", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    }),
+    createSectionHeader("4.0", "List of Terms, Abbreviations and References"),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
 
     new Paragraph({
       children: [new TextRun({ text: "4.1 Abbreviations", bold: true, size: 24 })],
@@ -911,10 +1274,8 @@ export async function buildWordContent(
   // SECTION 5.0 - NOISE SURVEY INTRODUCTION
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "5.0 NOISE SURVEY INTRODUCTION", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    }),
+    createSectionHeader("5.0", "Noise Survey Introduction"),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
 
     new Paragraph({
       children: [new TextRun({ text: "5.1 Premises", bold: true, size: 24 })],
@@ -1205,10 +1566,8 @@ export async function buildWordContent(
   // SECTION 6.0 - SURVEY METHODOLOGY
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "6.0 SURVEY METHODOLOGY", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    }),
+    createSectionHeader("6.0", "Survey Methodology"),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
 
     new Paragraph({
       children: [new TextRun({ text: "6.1 Instrumentation", bold: true })],
@@ -1466,10 +1825,8 @@ export async function buildWordContent(
   // SECTION 7.0 - RESULTS AND DISCUSSION (EXISTING IMPLEMENTATION)
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "7.0 RESULTS AND DISCUSSION", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    })
+    createSectionHeader("7.0", "Results and Discussion"),
+    new Paragraph({ text: "", spacing: { after: 300 } })
   );
 
   // Build detailed noise zoning results table for each area
@@ -1951,10 +2308,8 @@ export async function buildWordContent(
   // SECTION 8.0 - RECOMMENDATIONS
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "8.0 RECOMMENDATIONS", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    }),
+    createSectionHeader("8.0", "Recommendations"),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
     new Paragraph({
       text: "The following recommendations are provided to reduce occupational noise exposure, protect employee hearing health, and ensure compliance with regulatory requirements. Recommendations are prioritized according to the hierarchy of controls, with engineering controls as the preferred approach.",
       spacing: { after: 300 }
@@ -2301,10 +2656,8 @@ export async function buildWordContent(
   // SECTION 9.0 - CONCLUSION
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "9.0 CONCLUSION", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    }),
+    createSectionHeader("9.0", "Conclusion"),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
     new Paragraph({
       children: [
         new TextRun({ text: "The occupational hygiene noise survey conducted at ", size: 20, font: "Calibri" }),
@@ -2334,10 +2687,8 @@ export async function buildWordContent(
   // SECTION 10.0 - CERTIFICATES
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "10.0 CERTIFICATES", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    }),
+    createSectionHeader("10.0", "Certificates"),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
     new Paragraph({ text: "The following certificates and documentation support this report:" }),
     new Paragraph({ text: "", spacing: { after: 200 } }),
     new Paragraph({
@@ -2367,10 +2718,8 @@ export async function buildWordContent(
   // SECTION 11.0 - SIGNATURE PAGE
   // ====================================================================
   children.push(
-    new Paragraph({
-      children: [new TextRun({ text: "11.0 SIGNATURE PAGE", bold: true, size: 28 })],
-      spacing: { before: 400, after: 300 }
-    }),
+    createSectionHeader("11.0", "Signature Page"),
+    new Paragraph({ text: "", spacing: { after: 300 } }),
     new Paragraph({ text: "", spacing: { after: 400 } }),
     new Paragraph({
       children: [new TextRun({ text: "Report prepared by:", bold: true })],
