@@ -163,6 +163,84 @@ export default function EquipmentEntry({
 
   const valid = isStepValid(2, data);
 
+  // Helper function to calculate equipment calibration status
+  const getEquipmentStatus = (eq: Equipment): {
+    status: 'good' | 'warning' | 'error';
+    message: string;
+    icon: string;
+  } => {
+    if (eq.type === "SLM") {
+      // Check calibration drift
+      if (eq.pre && eq.post) {
+        const drift = Math.abs(parseFloat(eq.pre) - parseFloat(eq.post));
+        if (drift > 1.0) {
+          return {
+            status: 'error',
+            message: `Drift: ${drift.toFixed(1)} dB (exceeds ±1 dB limit)`,
+            icon: '❌'
+          };
+        } else if (drift > 0.5) {
+          return {
+            status: 'warning',
+            message: `Drift: ${drift.toFixed(1)} dB (acceptable)`,
+            icon: '⚠️'
+          };
+        } else {
+          return {
+            status: 'good',
+            message: `Drift: ${drift.toFixed(1)} dB (excellent)`,
+            icon: '✅'
+          };
+        }
+      }
+      return { status: 'warning', message: 'No calibration data', icon: '⚠️' };
+    }
+
+    if (eq.type === "Calibrator") {
+      // Check calibration certificate date
+      if (eq.calibrationDate) {
+        const calDate = new Date(eq.calibrationDate);
+        const today = new Date();
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+        if (calDate < oneYearAgo) {
+          const monthsOld = Math.floor((today.getTime() - calDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+          return {
+            status: 'error',
+            message: `Certificate expired (${monthsOld} months old)`,
+            icon: '❌'
+          };
+        } else {
+          const monthsRemaining = Math.floor((calDate.getTime() + (365 * 24 * 60 * 60 * 1000) - today.getTime()) / (1000 * 60 * 60 * 24 * 30));
+          if (monthsRemaining < 2) {
+            return {
+              status: 'warning',
+              message: `Expiring soon (${monthsRemaining} months remaining)`,
+              icon: '⚠️'
+            };
+          }
+          return {
+            status: 'good',
+            message: `Valid (${monthsRemaining} months remaining)`,
+            icon: '✅'
+          };
+        }
+      }
+      return { status: 'warning', message: 'No calibration date', icon: '⚠️' };
+    }
+
+    return { status: 'good', message: 'OK', icon: '✅' };
+  };
+
+  // Calculate equipment health summary
+  const equipmentSummary = {
+    total: data.equipment.length,
+    good: data.equipment.filter(eq => getEquipmentStatus(eq).status === 'good').length,
+    warning: data.equipment.filter(eq => getEquipmentStatus(eq).status === 'warning').length,
+    error: data.equipment.filter(eq => getEquipmentStatus(eq).status === 'error').length,
+  };
+
   return (
     <Section title="">
       {/* --- Header --- */}
@@ -177,6 +255,40 @@ export default function EquipmentEntry({
           </div>
         </div>
       </div>
+
+      {/* Equipment Health Summary */}
+      {data.equipment.length > 0 && (
+        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <h3 className="text-sm font-bold mb-2">Equipment Health Status</h3>
+          <div className="flex gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">Total:</span>
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">{equipmentSummary.total}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">✅ Good:</span>
+              <span className="px-2 py-1 bg-green-100 text-green-800 rounded">{equipmentSummary.good}</span>
+            </div>
+            {equipmentSummary.warning > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">⚠️ Warnings:</span>
+                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">{equipmentSummary.warning}</span>
+              </div>
+            )}
+            {equipmentSummary.error > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">❌ Issues:</span>
+                <span className="px-2 py-1 bg-red-100 text-red-800 rounded">{equipmentSummary.error}</span>
+              </div>
+            )}
+          </div>
+          {equipmentSummary.error > 0 && (
+            <p className="mt-2 text-sm text-red-700">
+              ⚠️ Some equipment has calibration issues. Please review and recalibrate as needed.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* --- Equipment Type - ALWAYS VISIBLE BUT DISABLED IN VIEW MODE --- */}
       <div className="flex gap-4 mb-4">
@@ -318,6 +430,26 @@ export default function EquipmentEntry({
           {/* Calibrator Settings */}
           {temp.type === "Calibrator" && (
             <>
+              {/* Calibration Date */}
+              <div className="mb-4">
+                <Field
+                  label="Calibration Certificate Date"
+                  type="date"
+                  value={temp.calibrationDate || ""}
+                  onChange={(val) => setTemp({ ...temp, calibrationDate: val })}
+                  placeholder=""
+                  disabled={readOnly}
+                  required={true}
+                  error={getFieldError("calibrationDate", errors, touched)}
+                  warning={errors.calibrationDate && errors.calibrationDate.startsWith("⚠️") ? errors.calibrationDate : ""}
+                  success={isFieldValid(temp.calibrationDate, "calibrationDate", errors)}
+                  onBlur={() => handleBlur("calibrationDate")}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  ℹ️ Calibration certificates are typically valid for 1 year. You will receive a warning if the certificate is expired or expiring soon.
+                </p>
+              </div>
+
               <h4 className="text-md font-bold underline mb-2">REFERENCE SPL:</h4>
               <div className="grid grid-cols-4 gap-4 mb-4">
                 <Field
@@ -398,66 +530,117 @@ export default function EquipmentEntry({
                   <tr>
                     <th className="px-3 py-2 border-b text-center">#</th>
                     <th className="px-3 py-2 border-b text-center">Device</th>
+                    <th className="px-3 py-2 border-b text-center">Serial</th>
                     {type === "SLM" && (
                       <>
+                        <th className="px-3 py-2 border-b text-center">Pre (dB)</th>
+                        <th className="px-3 py-2 border-b text-center">Post (dB)</th>
+                        <th className="px-3 py-2 border-b text-center">Drift</th>
                         <th className="px-3 py-2 border-b text-center">Weighting</th>
                         <th className="px-3 py-2 border-b text-center">Response</th>
-                        <th className="px-3 py-2 border-b text-center">LEQ/SPL</th>
                       </>
                     )}
                     {type === "Calibrator" && (
                       <>
+                        <th className="px-3 py-2 border-b text-center">Cal. Date</th>
                         <th className="px-3 py-2 border-b text-center">Pre</th>
                         <th className="px-3 py-2 border-b text-center">During</th>
                         <th className="px-3 py-2 border-b text-center">Post</th>
-                        <th className="px-3 py-2 border-b text-center">Area Ref</th>
                       </>
                     )}
+                    <th className="px-3 py-2 border-b text-center">Status</th>
                     {!readOnly && (
                       <th className="px-3 py-2 border-b text-center">Actions</th>
                     )}
                   </tr>
                 </thead>
                 <tbody>
-                  {eqOfType.map((eq, i) => (
-                    <tr key={eq.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-center">{i + 1}</td>
-                      <td className="px-3 py-2 text-center">{eq.name}</td>
-                      {type === "SLM" && (
-                        <>
-                          <td className="px-3 py-2 text-center">{eq.weighting}</td>
-                          <td className="px-3 py-2 text-center">{eq.responseImpulse}</td>
-                          <td className="px-3 py-2 text-center">{eq.responseLEQ}</td>
-                        </>
-                      )}
-                      {type === "Calibrator" && (
-                        <>
-                          <td className="px-3 py-2 text-center">{eq.pre}</td>
-                          <td className="px-3 py-2 text-center">{eq.during}</td>
-                          <td className="px-3 py-2 text-center">{eq.post}</td>
-                          <td className="px-3 py-2 text-center">{eq.areaRef}</td>
-                        </>
-                      )}
-                      {!readOnly && (
-                        <td className="px-3 py-2 text-center flex justify-center gap-2">
-                          <Button
-                            variant="success"
-                            onClick={() => editEquipment(eq)}
-                            disabled={editingId !== null}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="danger"
-                            onClick={() => deleteEquipment(eq.id)}
-                            disabled={editingId !== null}
-                          >
-                            Delete
-                          </Button>
+                  {eqOfType.map((eq, i) => {
+                    const status = getEquipmentStatus(eq);
+                    const rowBgColor =
+                      status.status === 'error' ? 'bg-red-50' :
+                      status.status === 'warning' ? 'bg-yellow-50' :
+                      'hover:bg-gray-50';
+
+                    return (
+                      <tr key={eq.id} className={rowBgColor}>
+                        <td className="px-3 py-2 text-center">{i + 1}</td>
+                        <td className="px-3 py-2 text-center font-medium">{eq.name}</td>
+                        <td className="px-3 py-2 text-center text-xs text-gray-600">{eq.serial}</td>
+                        {type === "SLM" && (
+                          <>
+                            <td className="px-3 py-2 text-center">
+                              {eq.pre ? parseFloat(eq.pre).toFixed(1) : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {eq.post ? parseFloat(eq.post).toFixed(1) : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {eq.pre && eq.post ? (
+                                <span className={`font-medium ${
+                                  Math.abs(parseFloat(eq.pre) - parseFloat(eq.post)) > 1.0
+                                    ? 'text-red-600'
+                                    : Math.abs(parseFloat(eq.pre) - parseFloat(eq.post)) > 0.5
+                                    ? 'text-yellow-600'
+                                    : 'text-green-600'
+                                }`}>
+                                  {Math.abs(parseFloat(eq.pre) - parseFloat(eq.post)).toFixed(1)}
+                                </span>
+                              ) : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-center">{eq.weighting}</td>
+                            <td className="px-3 py-2 text-center text-xs">{eq.responseImpulse}</td>
+                          </>
+                        )}
+                        {type === "Calibrator" && (
+                          <>
+                            <td className="px-3 py-2 text-center text-xs">
+                              {eq.calibrationDate ? new Date(eq.calibrationDate).toLocaleDateString() : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-center">{eq.pre || '—'}</td>
+                            <td className="px-3 py-2 text-center">{eq.during || '—'}</td>
+                            <td className="px-3 py-2 text-center">{eq.post || '—'}</td>
+                          </>
+                        )}
+                        <td className="px-3 py-2 text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-lg">{status.icon}</span>
+                            <span className={`text-xs font-medium px-2 py-1 rounded ${
+                              status.status === 'error' ? 'bg-red-100 text-red-800' :
+                              status.status === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {status.status === 'error' ? 'Issue' :
+                               status.status === 'warning' ? 'Warning' : 'Good'}
+                            </span>
+                            <span className="text-xs text-gray-600" title={status.message}>
+                              {status.message.split('(')[0].trim()}
+                            </span>
+                          </div>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        {!readOnly && (
+                          <td className="px-3 py-2 text-center">
+                            <div className="flex justify-center gap-2">
+                              <Button
+                                variant="success"
+                                onClick={() => editEquipment(eq)}
+                                disabled={editingId !== null}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="danger"
+                                onClick={() => deleteEquipment(eq.id)}
+                                disabled={editingId !== null}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
