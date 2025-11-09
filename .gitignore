@@ -28,3 +28,6 @@ yarn-error.log*
 node_modules/.cache
 node_modules
 node_modules
+
+# temporary/backup directories
+cleaned-repo/
