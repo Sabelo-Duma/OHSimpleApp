@@ -17,6 +17,8 @@ import {
   NumberFormat,
   ShadingType,
 } from "docx";
+import { calculateAverageLAeq, getExposureSummary, classifyNoiseZone } from "../utils/noiseCalculations";
+import { getProtectionSummary } from "../utils/hearingProtectionCalculations";
 
 /**
  * Helper function to create yellow-highlighted TextRun for survey response data
@@ -1577,27 +1579,72 @@ export async function buildWordContent(
     new Paragraph({ text: "", spacing: { after: 100 } })
   );
 
-  // Equipment Table
+  // Equipment Table with Calibration Status
   if (data.equipment.length > 0) {
     const equipHeaderRow = new TableRow({
       children: [
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Equipment Name", bold: true })] })] }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Type", bold: true })] })] }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Serial No.", bold: true })] })] }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Calibration Date", bold: true })] })] }),
+        headerCell("Equipment Name"),
+        headerCell("Type"),
+        headerCell("Serial No."),
+        headerCell("Cal. Date"),
+        headerCell("Pre-Cal (dB)"),
+        headerCell("Post-Cal (dB)"),
+        headerCell("Drift (dB)"),
+        headerCell("Status"),
       ],
     });
 
-    const equipRows = data.equipment.map(eq =>
-      new TableRow({
+    const equipRows = data.equipment.map(eq => {
+      // Calculate drift and status for SLMs
+      let preCal = eq.pre || "—";
+      let postCal = eq.post || "—";
+      let drift = "—";
+      let status = "✓ OK";
+
+      if (eq.type === "SLM" && eq.pre && eq.post) {
+        const preVal = parseFloat(eq.pre);
+        const postVal = parseFloat(eq.post);
+        if (!isNaN(preVal) && !isNaN(postVal)) {
+          const driftVal = Math.abs(preVal - postVal);
+          drift = driftVal.toFixed(1);
+
+          if (driftVal > 1.0) {
+            status = "✗ Failed";
+          } else if (driftVal > 0.5) {
+            status = "⚠ Acceptable";
+          } else {
+            status = "✓ Excellent";
+          }
+        }
+      }
+
+      // For calibrators, check certificate date
+      if (eq.type === "Calibrator" && eq.calibrationDate) {
+        const calDate = new Date(eq.calibrationDate);
+        const today = new Date();
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+        if (calDate < oneYearAgo) {
+          status = "✗ Expired";
+        } else {
+          status = "✓ Valid";
+        }
+      }
+
+      return new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph(eq.name)] }),
-          new TableCell({ children: [new Paragraph(eq.type)] }),
-          new TableCell({ children: [new Paragraph(eq.serial)] }),
-          new TableCell({ children: [new Paragraph(eq.calibrationDate || eq.startDate || "N/A")] }),
+          highlightedCell(eq.name),
+          highlightedCell(eq.type),
+          highlightedCell(eq.serial),
+          highlightedCell(eq.calibrationDate || eq.startDate || "N/A"),
+          highlightedCell(preCal),
+          highlightedCell(postCal),
+          highlightedCell(drift),
+          highlightedCell(status),
         ],
-      })
-    );
+      });
+    });
 
     children.push(
       new Table({
@@ -1869,35 +1916,66 @@ export async function buildWordContent(
       })
     );
 
-    // Calculate average noise level from measurements
-    let avgNoiseLevel = "N/A";
+    // Calculate average noise level and LEX,8h from measurements
+    let avgLAeq = "N/A";
+    let worstLex8h = "N/A";
+    let worstDosePercent = "N/A";
+    let worstZoneLabel = "N/A";
     let measuredLevels = "";
+    let riskClass = "N/A";
+
     if (measurements.length > 0) {
-      const allReadings = measurements.flatMap(m => m.readings?.map(r => parseFloat(r)) || []).filter(r => !isNaN(r));
-      if (allReadings.length > 0) {
-        const avg = allReadings.reduce((a, b) => a + b, 0) / allReadings.length;
-        avgNoiseLevel = avg.toFixed(2);
+      // Calculate exposure data for each measurement
+      const exposureDataList = measurements.map(m => {
+        const readingValues = m.readings?.map(r => parseFloat(r)).filter(v => !isNaN(v)) || [];
+        const avgLAeqVal = calculateAverageLAeq(readingValues);
+        const exposureTime = parseFloat(m.exposureTime) || parseFloat(m.shiftDuration) || 8;
+        const shiftDuration = parseFloat(m.shiftDuration) || 8;
+        return {
+          avgLAeq: avgLAeqVal,
+          exposureSummary: getExposureSummary(avgLAeqVal, exposureTime, shiftDuration),
+          readings: readingValues
+        };
+      });
+
+      // Find worst case (highest LEX,8h)
+      const worstCase = exposureDataList.reduce((max, current) =>
+        current.exposureSummary.lex8h > max.exposureSummary.lex8h ? current : max
+      , exposureDataList[0]);
+
+      if (worstCase) {
+        avgLAeq = worstCase.avgLAeq.toFixed(1);
+        worstLex8h = worstCase.exposureSummary.lex8h.toFixed(1);
+        worstDosePercent = worstCase.exposureSummary.dose.toFixed(0);
+        worstZoneLabel = worstCase.exposureSummary.zone.label;
+
+        // Determine risk classification based on zone
+        const zone = worstCase.exposureSummary.zone.zone;
+        if (zone === 'green') {
+          riskClass = "Low Risk (Below Action Level)";
+        } else if (zone === 'orange') {
+          riskClass = "Medium Risk (Action Level Exceeded)";
+        } else {
+          riskClass = "High Risk (Limit Level Exceeded)";
+        }
       }
 
-      // Build measurement positions and readings
-      measurements.forEach(m => {
+      // Build measurement positions and readings with LEX,8h
+      measurements.forEach((m, mIdx) => {
         if (m.readings && m.readings.length > 0) {
+          const readingValues = m.readings.map(r => parseFloat(r)).filter(v => !isNaN(v));
+          const avgForMeasurement = calculateAverageLAeq(readingValues);
+          const exposureTime = parseFloat(m.exposureTime) || parseFloat(m.shiftDuration) || 8;
+          const shiftDuration = parseFloat(m.shiftDuration) || 8;
+          const summary = getExposureSummary(avgForMeasurement, exposureTime, shiftDuration);
+
           m.readings.forEach((reading, idx) => {
-            const position = String.fromCharCode(65 + idx); // A, B, C, D...
+            const position = String.fromCharCode(65 + idx + (mIdx * m.readings.length)); // A, B, C, D...
             measuredLevels += `${position}: ${reading} dB(A)\n`;
           });
+          measuredLevels += `LAeq: ${avgForMeasurement.toFixed(1)} dB(A), LEX,8h: ${summary.lex8h.toFixed(1)} dB(A) [${summary.zone.label}]\n\n`;
         }
       });
-    }
-
-    // Determine risk classification
-    const avgDb = parseFloat(avgNoiseLevel);
-    let riskClass = "N/A";
-    if (!isNaN(avgDb)) {
-      if (avgDb < 80) riskClass = "Low Risk";
-      else if (avgDb < 85) riskClass = "Medium Risk";
-      else if (avgDb < 90) riskClass = "High Risk";
-      else riskClass = "Very High Risk";
     }
 
     // Build noise sources description
@@ -1943,10 +2021,11 @@ export async function buildWordContent(
         children: [
           headerCell("No"),
           headerCell("Area / Location / Activity"),
-          headerCell("Measurement Position"),
-          headerCell("Measured Noise Rating Level in dB(A)"),
-          headerCell("8-Hour Equivalent Noise Rating Level (LReq,8h)"),
-          headerCell("Raw Risk Classification of NIHL"),
+          headerCell("Measurement Positions & Results"),
+          headerCell("Average LAeq"),
+          headerCell("Worst-Case LEX,8h"),
+          headerCell("Noise Dose %"),
+          headerCell("Zone Classification"),
           headerCell("Discussion"),
         ],
       })
@@ -1959,6 +2038,11 @@ export async function buildWordContent(
       briefDiscussion += ` Primary noise sources include equipment and operational processes.`;
     }
 
+    // Add compliance status to discussion
+    if (worstZoneLabel !== "N/A") {
+      briefDiscussion += ` Area classified as ${worstZoneLabel}.`;
+    }
+
     // Data row - ALL cells highlighted yellow as they contain survey response data
     areaTableRows.push(
       new TableRow({
@@ -1966,9 +2050,10 @@ export async function buildWordContent(
           highlightedCell(numbering),
           highlightedCell(area.name),
           highlightedCell(measuredLevels || "N/A"),
-          highlightedCell(avgNoiseLevel),
-          highlightedCell(avgNoiseLevel),
-          highlightedCell(riskClass),
+          highlightedCell(avgLAeq + " dB(A)"),
+          highlightedCell(worstLex8h + " dB(A)"),
+          highlightedCell(worstDosePercent + "%"),
+          highlightedCell(worstZoneLabel),
           highlightedCell(briefDiscussion),
         ],
       })
@@ -2150,16 +2235,88 @@ export async function buildWordContent(
         children.push(new Paragraph({ text: "", spacing: { after: 100 } }));
       });
 
-      // Adequacy assessment
-      children.push(
-        new Paragraph({
-          children: [
-            new TextRun({ text: "• These HPDs ", size: 20, font: "Calibri" }),
-            highlightedText("probably provide adequate protection", { size: 20 }),
-            new TextRun({ text: " against the noise rating levels in this area.", size: 20, font: "Calibri" })
-          ]
-        })
-      );
+      // Adequacy assessment with actual calculations
+      const lex8hValue = worstLex8h !== "N/A" ? parseFloat(worstLex8h) : 0;
+      if (lex8hValue > 0 && devices.length > 0) {
+        const protectionSummary = getProtectionSummary(lex8hValue, devices);
+
+        if (protectionSummary) {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: "• Protection Effectiveness Analysis:", bold: true, size: 20, font: "Calibri" })
+              ],
+              spacing: { after: 50, before: 100 }
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: "  - Actual Exposure (No PPE): ", size: 20, font: "Calibri" }),
+                highlightedText(`${lex8hValue.toFixed(1)} dB(A) [${protectionSummary.actualZone.label}]`, { size: 20 })
+              ]
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: "  - Effective Attenuation (Derated): ", size: 20, font: "Calibri" }),
+                highlightedText(`${protectionSummary.effectiveAttenuation.toFixed(1)} dB`, { size: 20 })
+              ]
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: "  - Protected Exposure (With PPE): ", size: 20, font: "Calibri" }),
+                highlightedText(`${protectionSummary.protectedLex8h.toFixed(1)} dB(A) [${protectionSummary.protectedZone.label}]`, { size: 20 })
+              ]
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: "  - Adequacy Assessment: ", size: 20, font: "Calibri" }),
+                highlightedText(`${protectionSummary.adequacy.level.toUpperCase()} - ${protectionSummary.adequacy.message}`, { size: 20 })
+              ],
+              spacing: { after: 100 }
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: "  - Recommendations:", bold: true, size: 20, font: "Calibri" })
+              ]
+            })
+          );
+
+          // Add each recommendation as a bullet point
+          protectionSummary.adequacy.recommendations.forEach(rec => {
+            children.push(
+              new Paragraph({
+                children: [
+                  new TextRun({ text: "    » ", size: 20, font: "Calibri" }),
+                  highlightedText(rec, { size: 20 })
+                ]
+              })
+            );
+          });
+
+          children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+        } else {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: "• These HPDs ", size: 20, font: "Calibri" }),
+                highlightedText("probably provide adequate protection", { size: 20 }),
+                new TextRun({ text: " against the noise rating levels in this area.", size: 20, font: "Calibri" })
+              ]
+            })
+          );
+          children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+        }
+      } else {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "• These HPDs ", size: 20, font: "Calibri" }),
+              highlightedText("probably provide adequate protection", { size: 20 }),
+              new TextRun({ text: " against the noise rating levels in this area.", size: 20, font: "Calibri" })
+            ]
+          })
+        );
+        children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+      }
     } else {
       children.push(
         new Paragraph({
@@ -2169,9 +2326,8 @@ export async function buildWordContent(
           ]
         })
       );
+      children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
     }
-
-    children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
 
     // Prohibited Activities Section
     children.push(
