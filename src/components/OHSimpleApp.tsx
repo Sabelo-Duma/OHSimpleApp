@@ -14,6 +14,7 @@ import Summary from "./Summary";
 import GijimaLogo from "./assets/Gijima-Logo.jpg";
 import HearingProtectionForm from "./HearingProtectionForm";
 import ExposuresForm from "./ExposuresForm";
+import AudiometryForm from "./AudiometryForm";
 import CommentsForm from "./CommentsForm";
 import Preview from "./Preview";
 
@@ -44,6 +45,7 @@ export default function OHSimpleApp({
     "Controls",
     "Hearing",
     "Exposures",
+    "Audiometry",
     "Comments",
   ];
   const modeToStepIndex: Record<string, number> = {
@@ -52,11 +54,12 @@ export default function OHSimpleApp({
     controls: 2,
     hearing: 3,
     exposures: 4,
-    comments: 5,
+    audiometry: 5,
+    comments: 6,
   };
 
   const [mode, setMode] = useState<
-    "survey" | "noise" | "measurement" | "controls" | "hearing" | "exposures" | "comments"
+    "survey" | "noise" | "measurement" | "controls" | "hearing" | "exposures" | "audiometry" | "comments"
   >("survey");
 
   const [data, setData] = useState<SurveyData>(initialSurvey);
@@ -119,12 +122,12 @@ export default function OHSimpleApp({
     <div ref={containerRef} className="min-h-screen bg-gray-50">
       <Container>
         {/* --- Header --- */}
-        <div className="flex justify-between items-center p-4 border-b bg-white shadow-sm">
-          <div className="flex items-center gap-4">
-            <img src={GijimaLogo} alt="Gijima Logo" className="h-12 w-auto" />
+        <div className="flex justify-between items-center p-2 sm:p-4 border-b bg-white shadow-sm gap-2">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <img src={GijimaLogo} alt="Gijima Logo" className="h-8 sm:h-12 w-auto" />
             {readOnly && (
-              <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                View Only Mode
+              <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs sm:text-sm font-medium">
+                View Only
               </div>
             )}
           </div>
@@ -133,7 +136,7 @@ export default function OHSimpleApp({
               onExit(data);
               instance.logoutPopup();
             }}
-            className="px-4 py-2 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-md bg-red-600 text-white text-xs sm:text-sm font-medium hover:bg-red-700 transition whitespace-nowrap"
           >
             Logout
           </button>
@@ -277,8 +280,20 @@ export default function OHSimpleApp({
                 data={data}
                 onChange={patch}
                 selectedAreaPath={currentAreaPath}
-                onNext={() => setMode("comments")}
+                onNext={() => setMode("audiometry")}
                 onPrev={() => setMode("hearing")}
+                readOnly={readOnly}
+              />
+            )}
+
+            {mode === "audiometry" && (
+              <AudiometryForm
+                data={data}
+                selectedAreaPath={currentAreaPath}
+                onNext={() => setMode("comments")}
+                onPrev={() => setMode("exposures")}
+                onChange={patch}
+                onSave={() => onSaveSurvey(data)}
                 readOnly={readOnly}
               />
             )}
@@ -287,7 +302,7 @@ export default function OHSimpleApp({
               <CommentsForm
                 data={data}
                 onChange={patch}
-                onPrev={() => setMode("exposures")}
+                onPrev={() => setMode("audiometry")}
                 currentStep={modeToStepIndex["comments"] + 1}
                 totalSteps={detailSteps.length}
                 currentAreaPath={currentAreaPath}

@@ -2,8 +2,9 @@
 // Cross-form validation utilities for survey data completeness and SANS 10083 compliance
 
 import { SurveyData, AreaPath } from "../components/types";
-import { calculateAverageLAeq, getExposureSummary } from "./noiseCalculations";
+import { calculateAverageLAeq, getExposureSummary, classifyNoiseZone } from "./noiseCalculations";
 import { getProtectionSummary } from "./hearingProtectionCalculations";
+import { getAudiometrySummary } from "./audiometryCalculations";
 
 export type ValidationSeverity = 'critical' | 'warning' | 'info';
 
@@ -502,6 +503,157 @@ function validateHearingProtection(data: SurveyData): ValidationIssue[] {
 }
 
 /**
+ * Validate audiometry / hearing conservation program per SANS 10083
+ */
+function validateAudiometry(data: SurveyData): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const leafAreas = collectLeafAreas(data);
+
+  leafAreas.forEach(({ path, name }) => {
+    const areaKey = JSON.stringify(path);
+    const employees = data.employeesByArea?.[areaKey] || [];
+    const measurements = data.measurementsByArea?.[areaKey] || [];
+
+    // Calculate noise zone for this area
+    let noiseZone: "green" | "orange" | "red" | null = null;
+    if (measurements.length > 0) {
+      // Calculate worst-case exposure
+      const exposureDataList = measurements.map(m => {
+        const readingValues = m.readings?.map(r => parseFloat(r)).filter(v => !isNaN(v)) || [];
+        const avgLAeq = calculateAverageLAeq(readingValues);
+        const exposureTime = parseFloat(m.exposureTime) || parseFloat(m.shiftDuration) || 8;
+        const shiftDuration = parseFloat(m.shiftDuration) || 8;
+        return getExposureSummary(avgLAeq, exposureTime, shiftDuration);
+      });
+
+      // Get worst case (highest LEX,8h)
+      const worstCase = exposureDataList.reduce((max, curr) => curr.lex8h > max.lex8h ? curr : max);
+      noiseZone = worstCase.zone.zone;
+    }
+
+    // RED ZONE (≥85 dB): Baseline audiograms CRITICAL
+    if (noiseZone === "red") {
+      if (employees.length === 0) {
+        issues.push({
+          severity: 'critical',
+          category: 'Audiometry',
+          message: `No employees enrolled in hearing conservation program`,
+          areaName: name,
+          areaPath: path,
+          recommendation: 'Per SANS 10083, all employees exposed to ≥85 dB must be enrolled in hearing conservation program with baseline audiograms'
+        });
+      } else {
+        // Check each employee for baseline
+        employees.forEach(emp => {
+          if (!emp.baselineTest) {
+            issues.push({
+              severity: 'critical',
+              category: 'Audiometry',
+              message: `Employee ${emp.firstName} ${emp.lastName} (${emp.employeeNumber}) lacks baseline audiogram in Red Zone (≥85 dB)`,
+              areaName: name,
+              areaPath: path,
+              recommendation: 'Baseline audiogram required before noise exposure per SANS 10083'
+            });
+          }
+
+          // Check annual testing for employees with baseline
+          if (emp.baselineTest) {
+            const baselineDate = new Date(emp.baselineTest.testDate);
+            const oneYearLater = new Date(baselineDate);
+            oneYearLater.setFullYear(baselineDate.getFullYear() + 1);
+
+            // If baseline was more than a year ago and no periodic tests
+            if (new Date() > oneYearLater && emp.periodicTests.length === 0) {
+              issues.push({
+                severity: 'warning',
+                category: 'Audiometry',
+                message: `Employee ${emp.firstName} ${emp.lastName} (${emp.employeeNumber}) overdue for annual audiogram`,
+                areaName: name,
+                areaPath: path,
+                recommendation: 'Annual audiometric testing required per SANS 10083'
+              });
+            }
+          }
+        });
+      }
+    }
+
+    // ORANGE ZONE (80-85 dB): Audiograms RECOMMENDED (warning)
+    if (noiseZone === "orange") {
+      if (employees.length === 0) {
+        issues.push({
+          severity: 'warning',
+          category: 'Audiometry',
+          message: `Consider enrolling employees in hearing conservation program`,
+          areaName: name,
+          areaPath: path,
+          recommendation: 'Orange Zone (80-85 dB) approaching action level. Baseline audiograms recommended as preventive measure'
+        });
+      }
+    }
+
+    // STS Detection Follow-up
+    employees.forEach(emp => {
+      if (emp.hasSTS) {
+        const summary = getAudiometrySummary(emp);
+
+        if (summary?.stsDetails?.severity === 'severe') {
+          issues.push({
+            severity: 'critical',
+            category: 'Audiometry - STS',
+            message: `Employee ${emp.firstName} ${emp.lastName} (${emp.employeeNumber}) has SEVERE Standard Threshold Shift`,
+            areaName: name,
+            areaPath: path,
+            recommendation: 'Immediate medical referral required. Remove from noise exposure until evaluation completed per SANS 10083'
+          });
+        } else if (summary?.stsDetails?.severity === 'moderate') {
+          issues.push({
+            severity: 'warning',
+            category: 'Audiometry - STS',
+            message: `Employee ${emp.firstName} ${emp.lastName} (${emp.employeeNumber}) has MODERATE Standard Threshold Shift`,
+            areaName: name,
+            areaPath: path,
+            recommendation: 'Medical evaluation required within 30 days. Ensure proper use of hearing protection per SANS 10083'
+          });
+        } else {
+          issues.push({
+            severity: 'info',
+            category: 'Audiometry - STS',
+            message: `Employee ${emp.firstName} ${emp.lastName} (${emp.employeeNumber}) has Standard Threshold Shift (≥10 dB)`,
+            areaName: name,
+            areaPath: path,
+            recommendation: 'Retest audiogram within 30 days to confirm. Review hearing protection effectiveness per SANS 10083'
+          });
+        }
+      }
+    });
+
+    // Annual Testing Compliance Check
+    employees.forEach(emp => {
+      if (emp.periodicTests.length > 0) {
+        const latestTest = emp.periodicTests[emp.periodicTests.length - 1];
+        const testDate = new Date(latestTest.testDate);
+        const oneYearLater = new Date(testDate);
+        oneYearLater.setFullYear(testDate.getFullYear() + 1);
+
+        if (new Date() > oneYearLater) {
+          issues.push({
+            severity: 'warning',
+            category: 'Audiometry',
+            message: `Employee ${emp.firstName} ${emp.lastName} (${emp.employeeNumber}) annual audiogram overdue`,
+            areaName: name,
+            areaPath: path,
+            recommendation: 'Schedule annual audiogram immediately per SANS 10083'
+          });
+        }
+      }
+    });
+  });
+
+  return issues;
+}
+
+/**
  * Comprehensive survey validation
  */
 export function validateSurvey(data: SurveyData): ValidationResult {
@@ -513,6 +665,7 @@ export function validateSurvey(data: SurveyData): ValidationResult {
   allIssues.push(...validateMeasurements(data));
   allIssues.push(...validateControls(data));
   allIssues.push(...validateHearingProtection(data));
+  allIssues.push(...validateAudiometry(data));
 
   // Separate by severity
   const criticalIssues = allIssues.filter(i => i.severity === 'critical');

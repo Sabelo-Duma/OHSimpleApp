@@ -72,9 +72,9 @@ export default function StartSurvey({
   return (
     <Section title="">
       {/* Custom header: centered title + right-aligned client/project */}
-      <div className="flex justify-between items-center mb-6 relative">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-2">
         {/* Centered heading */}
-        <h2 className="text-xl font-bold absolute left-1/2 transform -translate-x-1/2">
+        <h2 className="text-xl font-bold text-center md:absolute md:left-1/2 md:transform md:-translate-x-1/2">
           Start New Survey
         </h2>
 
@@ -128,8 +128,8 @@ export default function StartSurvey({
       </div>
 
       {/* Start Date & End Date */}
-      <div className="flex gap-4 mb-6">
-        <div className="w-1/2">
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="w-full md:w-1/2">
           <Field
             label="Start Date"
             value={data.startDate || ""}
@@ -143,7 +143,7 @@ export default function StartSurvey({
             onBlur={() => handleBlur("startDate")}
           />
         </div>
-        <div className="w-1/2">
+        <div className="w-full md:w-1/2">
           <Field
             label="End Date"
             value={data.endDate || ""}
@@ -195,20 +195,21 @@ export default function StartSurvey({
       />
 
       {/* Actions */}
-      <div className="flex justify-between mt-6">
+      <div className="flex flex-col sm:flex-row justify-between gap-3 mt-6">
         {/* Back button on the left */}
-        <Button onClick={onBack} variant="secondary">
+        <Button onClick={onBack} variant="secondary" className="w-full sm:w-auto">
           Back
         </Button>
 
         {/* Save + Next buttons on the right */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-col sm:flex-row">
           {!readOnly ? (
             <>
               <Button
                 onClick={handleSaveConfirm}
                 disabled={!valid || !allRequiredFilled}
                 variant="primary"
+                className="w-full sm:w-auto"
               >
                 Save
               </Button>
@@ -216,12 +217,13 @@ export default function StartSurvey({
                 onClick={onNext}
                 disabled={!valid || !allRequiredFilled}
                 variant="success"
+                className="w-full sm:w-auto"
               >
                 Next
               </Button>
             </>
           ) : (
-            <Button onClick={onNext} variant="secondary">
+            <Button onClick={onNext} variant="secondary" className="w-full sm:w-auto">
               Next
             </Button>
           )}

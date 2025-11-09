@@ -124,6 +124,53 @@ export type Exposure = {
 };
 
 /**
+ * Audiometry Types for Hearing Conservation Program
+ * Per SANS 10083 and ISO 1999
+ */
+
+export type AudiometryFrequency = 500 | 1000 | 2000 | 3000 | 4000 | 6000 | 8000;
+
+export type AudiogramData = {
+  /** Hearing threshold in dB HL for each frequency */
+  [K in AudiometryFrequency]: {
+    left: number;  // Left ear threshold (dB HL)
+    right: number; // Right ear threshold (dB HL)
+  };
+};
+
+export type AudiometryTestType = "Baseline" | "Annual" | "Exit" | "Follow-up";
+
+export type AudiometryTest = {
+  id: string;
+  testType: AudiometryTestType;
+  testDate: string;
+  audiogram: AudiogramData;
+  testerName: string;
+  testerQualification: string;
+  calibrationDate: string; // Audiometer calibration date
+  notes?: string;
+};
+
+export type Employee = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  employeeNumber: string;
+  dateOfBirth: string;
+  gender: "Male" | "Female" | "Other";
+  jobTitle: string;
+
+  // Hearing conservation program data
+  baselineTest?: AudiometryTest;
+  periodicTests: AudiometryTest[]; // Annual and follow-up tests
+
+  // STS tracking
+  hasSTS: boolean; // Standard Threshold Shift detected
+  stsDate?: string; // Date STS was first detected
+  stsDetails?: string; // Details about the STS
+};
+
+/**
  * Updated SurveyData:
  * All area-specific data is stored per areaRef (string key) to avoid TypeScript index issues.
  */
@@ -152,6 +199,7 @@ export type SurveyData = {
   hearingIssuedStatus?: Record<string, "Yes" | "No">;
   exposuresByArea?: { [areaRef: string]: Exposure };
   commentsByArea?: { [areaRef: string]: string };
+  employeesByArea?: { [areaRef: string]: Employee[] }; // Audiometry data by area
   currentAreaId?: string; // optional pointer for resume
 
   // New fields for completion tracking
@@ -181,5 +229,6 @@ export const emptySurvey: SurveyData = {
   controlsByArea: {},
   exposuresByArea: {},
   commentsByArea: {},
+  employeesByArea: {},
   createdAt: new Date().toISOString(),
 };

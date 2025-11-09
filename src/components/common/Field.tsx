@@ -5,7 +5,7 @@ interface FieldProps {
   label: string;
   value: string;
   onChange: (val: string) => void;
-  placeholder: string;
+  placeholder?: string;
   type?: string;
   disabled?: boolean;
   multiline?: boolean;
@@ -22,7 +22,7 @@ export default function Field({
   label,
   value,
   onChange,
-  placeholder,
+  placeholder = "",
   type = "text",
   disabled = false,
   multiline = false,

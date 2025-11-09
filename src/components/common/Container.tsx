@@ -9,7 +9,7 @@ export default function Container({ children, containerRef }: ContainerProps) {
   return (
     <div
       ref={containerRef ?? undefined} // only attach if provided
-      className="w-full max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-lg border border-gray-100 flex flex-col"
+      className="w-full max-w-4xl mx-auto bg-white p-4 md:p-8 rounded-2xl shadow-lg border border-gray-100 flex flex-col"
     >
       {children}
     </div>
