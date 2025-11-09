@@ -9,6 +9,7 @@ import { Document, Packer, Paragraph, Table } from "docx";
 import { saveAs } from "file-saver";
 import { Pie } from 'react-chartjs-2';
 import { Chart, ArcElement, Tooltip, Legend } from 'chart.js';
+import { validateSurvey, ValidationIssue } from "../utils/surveyValidation";
 Chart.register(ArcElement, Tooltip, Legend);
 
 interface SummaryProps {
@@ -20,6 +21,17 @@ interface SummaryProps {
 }
 
 export default function Summary({ data, onPrev, onNext, onReset, readOnly = false }: SummaryProps) {
+  const [showValidationWarning, setShowValidationWarning] = useState(false);
+
+  const handleNext = () => {
+    // Check for critical issues
+    if (!readOnly && validationResult.summary.criticalCount > 0) {
+      setShowValidationWarning(true);
+    } else {
+      onNext();
+    }
+  };
+
   const handleDownload = async () => {
     // Load logo from public folder
     let logoBuffer: ArrayBuffer | undefined;
@@ -107,16 +119,174 @@ export default function Summary({ data, onPrev, onNext, onReset, readOnly = fals
     };
   }, [data]);
 
-  const { 
-    totalAreas, 
-    totalEquipment, 
-    totalNoiseSources, 
-    totalMeasurements, 
-    totalControls, 
-    totalHPD, 
-    totalExposures, 
-    totalComments 
+  const {
+    totalAreas,
+    totalEquipment,
+    totalNoiseSources,
+    totalMeasurements,
+    totalControls,
+    totalHPD,
+    totalExposures,
+    totalComments
   } = statistics;
+
+  // Validation Results
+  const validationResult = useMemo(() => {
+    return validateSurvey(data);
+  }, [data]);
+
+  // Render Validation Dashboard
+  const renderValidationDashboard = () => {
+    const { criticalIssues, warnings, info, summary } = validationResult;
+
+    // Determine overall status
+    const overallStatus = summary.criticalCount > 0 ? 'critical' :
+                          summary.warningCount > 0 ? 'warning' :
+                          'success';
+
+    const statusConfig = {
+      critical: {
+        bg: 'bg-red-50',
+        border: 'border-red-300',
+        titleColor: 'text-red-900',
+        icon: '🚨',
+        message: 'CRITICAL ISSUES - Survey Incomplete',
+        description: 'The following critical issues must be resolved before generating reports:'
+      },
+      warning: {
+        bg: 'bg-orange-50',
+        border: 'border-orange-300',
+        titleColor: 'text-orange-900',
+        icon: '⚠️',
+        message: 'WARNINGS - Review Recommended',
+        description: 'Survey is valid but has warnings that should be reviewed:'
+      },
+      success: {
+        bg: 'bg-green-50',
+        border: 'border-green-300',
+        titleColor: 'text-green-900',
+        icon: '✅',
+        message: 'Survey Validation Passed',
+        description: 'All required data has been collected and validated. Ready for report generation.'
+      }
+    };
+
+    const config = statusConfig[overallStatus];
+
+    // Render issue card
+    const renderIssueCard = (issue: ValidationIssue, index: number) => {
+      const severityConfig = {
+        critical: { bg: 'bg-red-100', border: 'border-red-400', icon: '🔴', textColor: 'text-red-800' },
+        warning: { bg: 'bg-orange-100', border: 'border-orange-400', icon: '🟠', textColor: 'text-orange-800' },
+        info: { bg: 'bg-blue-100', border: 'border-blue-400', icon: '🔵', textColor: 'text-blue-800' }
+      };
+
+      const sConfig = severityConfig[issue.severity];
+
+      return (
+        <div key={index} className={`p-3 mb-2 border-l-4 ${sConfig.border} ${sConfig.bg} rounded-r`}>
+          <div className="flex items-start gap-2">
+            <span className="text-lg">{sConfig.icon}</span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`font-semibold text-xs uppercase ${sConfig.textColor}`}>
+                  {issue.category}
+                </span>
+                {issue.areaName && (
+                  <span className="text-xs bg-white px-2 py-0.5 rounded border border-gray-300">
+                    📍 {issue.areaName}
+                  </span>
+                )}
+              </div>
+              <div className="text-sm font-medium text-gray-900 mb-1">
+                {issue.message}
+              </div>
+              <div className="text-xs text-gray-700 italic">
+                💡 <span className="font-semibold">Recommendation:</span> {issue.recommendation}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className={`mb-8 p-6 border-2 rounded-lg ${config.border} ${config.bg}`}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className={`text-xl font-bold ${config.titleColor} flex items-center gap-2`}>
+              <span>{config.icon}</span>
+              <span>{config.message}</span>
+            </h3>
+            <p className="text-sm text-gray-700 mt-1">{config.description}</p>
+          </div>
+          <div className="flex gap-3">
+            {summary.criticalCount > 0 && (
+              <div className="text-center">
+                <div className="text-3xl font-bold text-red-700">{summary.criticalCount}</div>
+                <div className="text-xs text-red-600 font-semibold">Critical</div>
+              </div>
+            )}
+            {summary.warningCount > 0 && (
+              <div className="text-center">
+                <div className="text-3xl font-bold text-orange-700">{summary.warningCount}</div>
+                <div className="text-xs text-orange-600 font-semibold">Warnings</div>
+              </div>
+            )}
+            {summary.infoCount > 0 && (
+              <div className="text-center">
+                <div className="text-3xl font-bold text-blue-700">{summary.infoCount}</div>
+                <div className="text-xs text-blue-600 font-semibold">Info</div>
+              </div>
+            )}
+            {summary.totalIssues === 0 && (
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-700">0</div>
+                <div className="text-xs text-green-600 font-semibold">Issues</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Critical Issues */}
+        {criticalIssues.length > 0 && (
+          <div className="mb-4">
+            <h4 className="text-sm font-bold text-red-900 mb-2">🚨 Critical Issues ({criticalIssues.length})</h4>
+            {criticalIssues.map((issue, idx) => renderIssueCard(issue, idx))}
+          </div>
+        )}
+
+        {/* Warnings */}
+        {warnings.length > 0 && (
+          <div className="mb-4">
+            <h4 className="text-sm font-bold text-orange-900 mb-2">⚠️ Warnings ({warnings.length})</h4>
+            {warnings.map((issue, idx) => renderIssueCard(issue, idx))}
+          </div>
+        )}
+
+        {/* Info */}
+        {info.length > 0 && (
+          <div className="mb-4">
+            <h4 className="text-sm font-bold text-blue-900 mb-2">ℹ️ Information ({info.length})</h4>
+            {info.map((issue, idx) => renderIssueCard(issue, idx))}
+          </div>
+        )}
+
+        {/* Success message */}
+        {summary.totalIssues === 0 && (
+          <div className="text-center py-6">
+            <div className="text-5xl mb-3">✅</div>
+            <div className="text-lg font-semibold text-green-800 mb-2">
+              Validation Complete - No Issues Found
+            </div>
+            <div className="text-sm text-green-700">
+              All SANS 10083 requirements have been met. Survey is ready for report generation.
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Render Project Info
   const renderProjectInfo = () => (
@@ -476,6 +646,9 @@ export default function Summary({ data, onPrev, onNext, onReset, readOnly = fals
   return (
     <Section title="Survey Summary">
       <div className="summary-container p-4">
+        {/* Validation Dashboard */}
+        {renderValidationDashboard()}
+
         {renderProjectInfo()}
         {renderEquipmentUsedTable()}
         {renderAreasSurveyedTable()}
@@ -561,13 +734,49 @@ export default function Summary({ data, onPrev, onNext, onReset, readOnly = fals
           <Button variant="secondary" onClick={onPrev}>
             Back
           </Button>
-          <Button 
-            variant={readOnly ? "secondary" : "success"} 
-            onClick={onNext}
+          <Button
+            variant={readOnly ? "secondary" : "success"}
+            onClick={handleNext}
           >
             Next
           </Button>
         </Actions>
+
+        {/* Validation Warning Dialog */}
+        {showValidationWarning && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+              <div className="flex items-start gap-3 mb-4">
+                <span className="text-4xl">🚨</span>
+                <div>
+                  <h3 className="text-xl font-bold text-red-900 mb-2">
+                    Critical Issues Detected
+                  </h3>
+                  <p className="text-sm text-gray-700 mb-2">
+                    The survey has <span className="font-bold text-red-700">{validationResult.summary.criticalCount} critical issue(s)</span> that must be resolved before proceeding to report generation.
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    Please review the validation dashboard above and address all critical issues before continuing.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button variant="secondary" onClick={() => setShowValidationWarning(false)}>
+                  Review Issues
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    setShowValidationWarning(false);
+                    onNext();
+                  }}
+                >
+                  Proceed Anyway (Not Recommended)
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Section>
   );
