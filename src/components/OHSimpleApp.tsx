@@ -74,12 +74,7 @@ export default function OHSimpleApp({
     containerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [surveyStep, mode]);
 
-  // Show read-only banner in view mode
-  useEffect(() => {
-    if (readOnly) {
-      console.log("Viewing survey in read-only mode");
-    }
-  }, [readOnly]);
+  // Read-only mode is handled via UI - no logging needed
 
   const startNewSurvey = () => {
     setData({ ...emptySurvey, id: Date.now().toString() });
