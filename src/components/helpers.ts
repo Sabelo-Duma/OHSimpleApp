@@ -291,27 +291,9 @@ function collectAreas(areas: Area[], prefix = ""): { area: Area, numbering: stri
  * Returns children array that can be used directly in Document sections
  */
 export async function buildWordContent(
-  data: SurveyData,
-  logoBuffer?: ArrayBuffer
+  data: SurveyData
 ): Promise<(Paragraph | Table)[]> {
   const children: (Paragraph | Table)[] = [];
-
-  // Add logo if provided
-  if (logoBuffer) {
-    children.push(
-      new Paragraph({
-        children: [
-          new ImageRun({
-            data: new Uint8Array(logoBuffer),
-            transformation: { width: 120, height: 40 },
-            type: "png",
-          }),
-        ],
-        alignment: AlignmentType.LEFT,
-        spacing: { after: 300 },
-      })
-    );
-  }
 
   // ====================================================================
   // COVER PAGE - Formal title page matching ReportData.txt format

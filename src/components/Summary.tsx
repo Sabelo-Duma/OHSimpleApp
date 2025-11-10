@@ -34,19 +34,8 @@ export default function Summary({ data, onPrev, onNext, onReset, readOnly = fals
   };
 
   const handleDownload = async () => {
-    // Load logo from public folder
-    let logoBuffer: ArrayBuffer | undefined;
-    try {
-      const response = await fetch("/Gijima-Logo.png");
-      if (response.ok) {
-        logoBuffer = await response.arrayBuffer();
-      }
-    } catch (err) {
-      console.warn("Logo not found, continuing without it.");
-    }
-
     // Build Word content
-    const wordChildren: (Paragraph | Table)[] = await buildWordContent(data, logoBuffer);
+    const wordChildren: (Paragraph | Table)[] = await buildWordContent(data);
 
     const doc = new Document({
       sections: [
