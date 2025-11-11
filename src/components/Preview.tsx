@@ -7,6 +7,7 @@ import Button from "./common/Button";
 import { buildWordContent } from "./helpers";
 import { Document, Packer, Paragraph, Table, Footer, PageNumber, AlignmentType, TextRun } from "docx";
 import ConfirmDialog from "./common/ConfirmDialog";
+import SignatureCanvas from "react-signature-canvas";
 
 // Import pdfmake with error handling
 let pdfMake: any = null;
@@ -43,10 +44,9 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [pdfAvailable, setPdfAvailable] = useState(!!pdfMake);
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
-  
+
   // Canvas signature refs and state
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const sigCanvas = useRef<any>(null);
   const [hasSignature, setHasSignature] = useState(!!data.verificationSignature);
 
   // Generate PDF preview on component mount
@@ -56,72 +56,22 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
 
   // Initialize canvas with saved signature if it exists
   useEffect(() => {
-    if (signature && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const img = new Image();
-        img.onload = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        };
-        img.src = signature;
-      }
+    if (signature && sigCanvas.current) {
+      sigCanvas.current.fromDataURL(signature);
     }
   }, [signature]);
 
-  // Canvas drawing functions
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!hasViewedPDF || readOnly) return;
-    setIsDrawing(true);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    }
-  };
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !hasViewedPDF || readOnly) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = 'black';
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x, y);
+  // Track when user starts drawing to enable save button
+  const handleSignatureEnd = () => {
+    if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
       setHasSignature(true);
     }
   };
 
-  const stopDrawing = () => {
-    setIsDrawing(false);
-  };
-
   const clearSignature = () => {
     if (readOnly) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (sigCanvas.current) {
+      sigCanvas.current.clear();
       setHasSignature(false);
       setSignature("");
     }
@@ -129,11 +79,11 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
 
   const saveSignature = () => {
     if (readOnly) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const dataUrl = canvas.toDataURL('image/png');
-    setSignature(dataUrl);
+    if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+      const dataUrl = sigCanvas.current.toDataURL('image/png');
+      setSignature(dataUrl);
+      setHasSignature(true);
+    }
   };
 
   // Helper to reconstruct area path from numbering (e.g. '1.2.1')
@@ -165,8 +115,8 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
     }
 
     let signatureImage = data.verificationSignature || signature;
-    if (canvasRef.current && hasSignature && !signatureImage) {
-      signatureImage = canvasRef.current.toDataURL("image/png");
+    if (sigCanvas.current && hasSignature && !signatureImage) {
+      signatureImage = sigCanvas.current.toDataURL("image/png");
     }
 
     const docDefinition: any = {
@@ -491,6 +441,35 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
     <>
       <Section title="Fieldsheet Preview & Verification">
         <div className="space-y-6 mb-8">
+
+          {/* Instructions */}
+          {!readOnly && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    Important Instructions
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Click "Download Word Report" to download the complete comprehensive report (for your records)</li>
+                      <li>Click "View PDF Fieldsheet" to view and verify the survey data (required to enable comment and signature sections)</li>
+                      <li>Verify all survey data, measurements, and equipment information</li>
+                      <li>Check for any missing or incorrect information</li>
+                      <li>Provide detailed comments about your review</li>
+                      <li>Draw your signature to confirm the accuracy of the document</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* PDF Preview Section */}
           <div className="bg-white border rounded-lg p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -646,20 +625,16 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
                         <p className="text-xs text-gray-500 mb-2">
                           Draw your signature in the canvas below
                         </p>
-                        <div
-                          className="border border-gray-300 rounded-md mb-2 bg-white"
-                          style={{ height: "200px", width: "100%" }}
-                        >
-                          <canvas
-                            ref={canvasRef}
-                            width={500}
-                            height={200}
-                            className="w-full h-full cursor-crosshair bg-white"
-                            onMouseDown={startDrawing}
-                            onMouseMove={draw}
-                            onMouseUp={stopDrawing}
-                            onMouseLeave={stopDrawing}
-                            style={{ touchAction: 'none', backgroundColor: 'white' }}
+                        <div className="border border-gray-300 rounded-md bg-white mb-2 w-full" style={{ height: "200px" }}>
+                          <SignatureCanvas
+                            ref={sigCanvas}
+                            penColor="black"
+                            backgroundColor="white"
+                            canvasProps={{
+                              className: "sigCanvas w-full h-full",
+                              style: { width: '100%', height: '100%' }
+                            }}
+                            onEnd={handleSignatureEnd}
                           />
                         </div>
                         <div className="flex gap-2">
@@ -712,33 +687,6 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
             </div>
           </div>
 
-          {/* Instructions */}
-          {!readOnly && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    Important Instructions
-                  </h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>Click "Download Word Report" to download the complete comprehensive report (for your records)</li>
-                      <li>Click "View PDF Fieldsheet" to view and verify the survey data (required to enable comment and signature sections)</li>
-                      <li>Verify all survey data, measurements, and equipment information</li>
-                      <li>Check for any missing or incorrect information</li>
-                      <li>Provide detailed comments about your review</li>
-                      <li>Draw your signature to confirm the accuracy of the document</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         <Actions>

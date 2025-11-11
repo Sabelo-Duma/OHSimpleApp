@@ -1716,6 +1716,134 @@ export async function buildWordContent(
     new Paragraph({ text: "• Field notes documenting operational conditions, deviations, and observations" }),
     new Paragraph({ text: "", spacing: { after: 300 } }),
 
+    // ====================================================================
+    // TABLE 6.2.1 - RAW RISK CLASSIFICATION
+    // ====================================================================
+    new Paragraph({
+      children: [new TextRun({ text: "Table 6.2.1 Raw Risk Classification", bold: true, size: 22, font: "Calibri" })],
+      spacing: { before: 200, after: 100 }
+    }),
+    new Paragraph({
+      text: "The noise rating levels reflected in the table below are used to assess the risks of worker exposure to noise and establish the action required for the various levels of noise exposure.",
+      spacing: { after: 200 }
+    }),
+    new Table({
+      rows: [
+        new TableRow({
+          children: [
+            headerCell("Average Noise Rating Level dB(A)"),
+            headerCell("Raw Risk Classification"),
+            headerCell("Required Actions"),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ text: "<82", alignment: AlignmentType.CENTER })],
+              shading: { fill: "D9EAD3", type: ShadingType.CLEAR },
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({ text: "Low Risk of NIHL", bold: true })],
+                alignment: AlignmentType.CENTER
+              })],
+              shading: { fill: "D9EAD3", type: ShadingType.CLEAR },
+            }),
+            new TableCell({
+              children: [new Paragraph({ text: "No action required", alignment: AlignmentType.LEFT })],
+              shading: { fill: "D9EAD3", type: ShadingType.CLEAR },
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ text: "≥ 82 - <85", alignment: AlignmentType.CENTER })],
+              shading: { fill: "FFF2CC", type: ShadingType.CLEAR },
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({ text: "Moderate Risk of NIHL", bold: true })],
+                alignment: AlignmentType.CENTER
+              })],
+              shading: { fill: "FFF2CC", type: ShadingType.CLEAR },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({ text: "• Implement Hearing Conservation Programme" }),
+                new Paragraph({ text: "• Conduct Medical Surveillance" }),
+                new Paragraph({ text: "• Apply hearing protection devices" }),
+              ],
+              shading: { fill: "FFF2CC", type: ShadingType.CLEAR },
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ text: "≥ 85 - <105", alignment: AlignmentType.CENTER })],
+              shading: { fill: "F4CCCC", type: ShadingType.CLEAR },
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({ text: "High Risk of NIHL", bold: true })],
+                alignment: AlignmentType.CENTER
+              })],
+              shading: { fill: "F4CCCC", type: ShadingType.CLEAR },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({ text: "• Demarcate area as a noise zone" }),
+                new Paragraph({ text: "• Hierarchy of Control" }),
+                new Paragraph({ text: "• Ensure regular Occupational Hygiene Monitoring and Medical Surveillance, as per requirements under the Noise Induced Hearing Loss Regulations (2003) and SANS 10083 (latest version)." }),
+              ],
+              shading: { fill: "F4CCCC", type: ShadingType.CLEAR },
+            }),
+          ],
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({ text: "≥ 105", alignment: AlignmentType.CENTER })],
+              shading: { fill: "CC0000", type: ShadingType.CLEAR },
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({ text: "Very High Risk of NIHL", bold: true, color: "FFFFFF" })],
+                alignment: AlignmentType.CENTER
+              })],
+              shading: { fill: "CC0000", type: ShadingType.CLEAR },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({ text: "• Immediate action required" }),
+                new Paragraph({ text: "• Double hearing protection (earplugs AND earmuffs)" }),
+                new Paragraph({ text: "• 6-monthly audiometric testing" }),
+                new Paragraph({ text: "• Engineering controls priority" }),
+              ],
+              shading: { fill: "CC0000", type: ShadingType.CLEAR },
+            }),
+          ],
+        }),
+      ],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+        bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+        left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+        right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+        insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      },
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Legend:", bold: true, size: 20, font: "Calibri" }),
+        new TextRun({ text: " NIHL - Noise-Induced Hearing Loss", size: 20, font: "Calibri" })
+      ],
+      spacing: { before: 100, after: 300 }
+    }),
+
     new Paragraph({
       children: [new TextRun({ text: "6.3 Survey Strategy and Approach", bold: true, size: 24 })],
       spacing: { before: 300, after: 100 }
@@ -2981,39 +3109,142 @@ export async function buildWordContent(
   children.push(
     createSectionHeader("11.0", "Signature Page"),
     new Paragraph({ text: "", spacing: { after: 300 } }),
-    new Paragraph({ text: "", spacing: { after: 400 } }),
+
+    // Declaration
     new Paragraph({
-      children: [new TextRun({ text: "Report prepared by:", bold: true })],
+      text: "The undersigned herewith declare that the requirements as mentioned in the statement page were adhered to and that the contents of this report comply with the Gijima OHES's Quality Policies and with the requirements of the Department of Employment and Labour for Approved Inspection Authorities/Inspection Bodies.",
+      spacing: { after: 400 }
+    }),
+
+    // Contact Information Header
+    new Paragraph({
+      children: [new TextRun({ text: "GIJIMA OCCUPATIONAL HYGIENE AND ENVIRONMENTAL SERVICES", bold: true, size: 24, font: "Calibri" })],
+      alignment: AlignmentType.CENTER,
       spacing: { before: 200, after: 100 }
     }),
-    new Paragraph({ text: "Name: _________________________________" }),
-    new Paragraph({ text: "Designation: Occupational Hygienist" }),
-    new Paragraph({ text: "Signature: _________________________________" }),
-    new Paragraph({ text: `Date: ${new Date().toLocaleDateString()}` }),
-    new Paragraph({ text: "", spacing: { after: 400 } }),
-    new Paragraph({
-      children: [new TextRun({ text: "Report reviewed and approved by:", bold: true })],
-      spacing: { before: 200, after: 100 }
-    }),
-    new Paragraph({ text: "Name: _________________________________" }),
-    new Paragraph({ text: "Designation: Senior Occupational Hygienist / AIA" }),
-    new Paragraph({ text: "Signature: _________________________________" }),
-    new Paragraph({ text: `Date: ${new Date().toLocaleDateString()}` }),
-    new Paragraph({ text: "", spacing: { after: 400 } }),
-    new Paragraph({
-      children: [new TextRun({ text: "Client acknowledgement:", bold: true })],
-      spacing: { before: 200, after: 100 }
-    }),
-    new Paragraph({ text: "Name: _________________________________" }),
-    new Paragraph({ text: "Designation: _________________________________" }),
     new Paragraph({
       children: [
-        new TextRun({ text: "Company: ", size: 20, font: "Calibri" }),
-        highlightedText(data.client, { size: 20 })
-      ]
+        new TextRun({ text: "Private Bag X1807, Middelburg, 1050 | ", size: 20, font: "Calibri" }),
+        new TextRun({ text: "Tel: ", bold: true, size: 20, font: "Calibri" }),
+        new TextRun({ text: "013 591 3903/3916 | ", size: 20, font: "Calibri" }),
+        new TextRun({ text: "Fax: ", bold: true, size: 20, font: "Calibri" }),
+        new TextRun({ text: "086 622 9242", size: 20, font: "Calibri" })
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 100 }
     }),
-    new Paragraph({ text: "Signature: _________________________________" }),
-    new Paragraph({ text: "Date: _________________________________" }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "E-mail: ", bold: true, size: 20, font: "Calibri" }),
+        new TextRun({ text: "OHES@gijima.com", size: 20, font: "Calibri", underline: {} })
+      ],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 400 }
+    }),
+
+    // Signature Table - using a table for better layout
+    new Table({
+      rows: [
+        // Header Row
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: "Report Author", bold: true, size: 22 })],
+                  alignment: AlignmentType.CENTER
+                })
+              ],
+              borders: {
+                top: { style: BorderStyle.NONE },
+                bottom: { style: BorderStyle.SINGLE, size: 1 },
+                left: { style: BorderStyle.NONE },
+                right: { style: BorderStyle.SINGLE, size: 1 },
+              },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: "Technical Signatory", bold: true, size: 22 })],
+                  alignment: AlignmentType.CENTER
+                })
+              ],
+              borders: {
+                top: { style: BorderStyle.NONE },
+                bottom: { style: BorderStyle.SINGLE, size: 1 },
+                left: { style: BorderStyle.NONE },
+                right: { style: BorderStyle.NONE },
+              },
+            }),
+          ],
+        }),
+        // Signature Lines Row
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({ text: "", spacing: { after: 600 } }), // Space for signature
+                new Paragraph({ text: "_________________________________" }),
+                new Paragraph({ text: "", spacing: { after: 200 } }),
+                new Paragraph({
+                  children: [new TextRun({ text: "K. TSHIKARE", bold: true })],
+                  alignment: AlignmentType.CENTER
+                }),
+                new Paragraph({
+                  text: "(Report Author Signature)",
+                  alignment: AlignmentType.CENTER
+                }),
+                new Paragraph({
+                  text: "REGISTERED OCCUPATIONAL HYGIENE ASSISTANT",
+                  alignment: AlignmentType.CENTER
+                }),
+                new Paragraph({
+                  text: "(S.A.I.O.H. Membership No. 2127)",
+                  alignment: AlignmentType.CENTER
+                }),
+              ],
+              borders: {
+                top: { style: BorderStyle.NONE },
+                bottom: { style: BorderStyle.NONE },
+                left: { style: BorderStyle.NONE },
+                right: { style: BorderStyle.SINGLE, size: 1 },
+              },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({ text: "", spacing: { after: 600 } }), // Space for signature
+                new Paragraph({ text: "_________________________________" }),
+                new Paragraph({ text: "", spacing: { after: 200 } }),
+                new Paragraph({
+                  children: [new TextRun({ text: "M. KEYTER", bold: true })],
+                  alignment: AlignmentType.CENTER
+                }),
+                new Paragraph({
+                  text: "(Technical Signatory Signature / Report Issue Date)",
+                  alignment: AlignmentType.CENTER
+                }),
+                new Paragraph({
+                  text: "REGISTERED OCCUPATIONAL HYGIENIST",
+                  alignment: AlignmentType.CENTER
+                }),
+                new Paragraph({
+                  text: "(S.A.I.O.H. Membership No. 1425)",
+                  alignment: AlignmentType.CENTER
+                }),
+              ],
+              borders: {
+                top: { style: BorderStyle.NONE },
+                bottom: { style: BorderStyle.NONE },
+                left: { style: BorderStyle.NONE },
+                right: { style: BorderStyle.NONE },
+              },
+            }),
+          ],
+        }),
+      ],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+    }),
+
     new Paragraph({ text: "", spacing: { after: 400 } }),
     new Paragraph({
       children: [new TextRun({ text: "END OF REPORT", bold: true })],
