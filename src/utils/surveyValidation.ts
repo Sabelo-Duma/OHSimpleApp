@@ -127,14 +127,14 @@ function validateEquipment(data: SurveyData): ValidationIssue[] {
     });
   }
 
-  // Check SLM equipment pairing
+  // Check SLM equipment pairing (sequential pairing)
   data.equipment.filter(eq => eq.type === 'SLM').forEach(slm => {
     if (!slm.pairedCalibratorId) {
       issues.push({
         severity: 'warning',
         category: 'Equipment Setup',
         message: `SLM "${slm.name}" is not paired with a calibrator`,
-        recommendation: 'Pair each SLM with its corresponding calibrator for proper traceability'
+        recommendation: 'Add a calibrator after adding the SLM to enable automatic sequential pairing'
       });
     } else {
       // Check if paired calibrator exists
@@ -144,7 +144,7 @@ function validateEquipment(data: SurveyData): ValidationIssue[] {
           severity: 'warning',
           category: 'Equipment Setup',
           message: `SLM "${slm.name}" is paired with a calibrator that no longer exists`,
-          recommendation: 'Re-pair the SLM with an existing calibrator'
+          recommendation: 'Delete and re-add equipment to re-establish pairing'
         });
       }
     }

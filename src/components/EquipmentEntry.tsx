@@ -153,7 +153,28 @@ export default function EquipmentEntry({
       onChange({ equipment: updated });
     } else {
       const newEq: Equipment = { ...temp, id: Date.now().toString() };
-      onChange({ equipment: [...data.equipment, newEq] });
+      let updatedEquipment = [...data.equipment, newEq];
+
+      // Sequential pairing: When adding a Calibrator, automatically pair it with the most recent unpaired SLM
+      if (newEq.type === "Calibrator") {
+        // Find the most recent SLM that doesn't have a pairedCalibratorId
+        const unpairedSlms = data.equipment.filter(
+          eq => eq.type === "SLM" && !eq.pairedCalibratorId
+        );
+
+        if (unpairedSlms.length > 0) {
+          const lastUnpairedSlm = unpairedSlms[unpairedSlms.length - 1];
+
+          // Update the SLM to pair it with this new calibrator
+          updatedEquipment = updatedEquipment.map(eq =>
+            eq.id === lastUnpairedSlm.id
+              ? { ...eq, pairedCalibratorId: newEq.id }
+              : eq
+          );
+        }
+      }
+
+      onChange({ equipment: updatedEquipment });
     }
 
     // Reset validation state
@@ -232,6 +253,13 @@ export default function EquipmentEntry({
     }
 
     return { status: 'good', message: 'OK', icon: '✅' };
+  };
+
+  // Check if all SLMs have paired calibrators
+  const allSlmsHavePairedCalibrators = (): boolean => {
+    const slms = data.equipment.filter(eq => eq.type === "SLM");
+    if (slms.length === 0) return true; // No SLMs to check
+    return slms.every(slm => slm.pairedCalibratorId);
   };
 
   // Calculate equipment health summary
@@ -448,26 +476,6 @@ export default function EquipmentEntry({
                   />
                 </div>
               </div>
-
-              {/* Paired Calibrator */}
-              <h4 className="text-md font-bold underline mb-2">PAIRED CALIBRATOR:</h4>
-              <div className="mb-4">
-                <SelectField
-                  label="Select Calibrator"
-                  value={temp.pairedCalibratorId || ""}
-                  options={[
-                    { label: "-- Select Calibrator --", value: "" },
-                    ...data.equipment
-                      .filter(eq => eq.type === "Calibrator")
-                      .map(eq => ({ label: eq.name, value: eq.id }))
-                  ]}
-                  onChange={(val) => setTemp({ ...temp, pairedCalibratorId: val })}
-                  disabled={readOnly}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  ℹ️ Select the calibrator that will be used with this SLM. When you select this SLM in measurements, the paired calibrator will be automatically selected.
-                </p>
-              </div>
             </>
           )}
 
@@ -593,7 +601,6 @@ export default function EquipmentEntry({
                         <th className="px-3 py-2 border-b text-center">Weighting</th>
                         <th className="px-3 py-2 border-b text-center">Response</th>
                         <th className="px-3 py-2 border-b text-center">LEQ/SPL</th>
-                        <th className="px-3 py-2 border-b text-center">Paired Calibrator</th>
                       </>
                     )}
                     {type === "Calibrator" && (
@@ -628,15 +635,6 @@ export default function EquipmentEntry({
                             <td className="px-3 py-2 text-center">{eq.weighting}</td>
                             <td className="px-3 py-2 text-center text-xs">{eq.responseImpulse}</td>
                             <td className="px-3 py-2 text-center text-xs">{eq.responseLEQ}</td>
-                            <td className="px-3 py-2 text-center text-xs">
-                              {eq.pairedCalibratorId ? (
-                                <span className="text-blue-600 font-medium">
-                                  {data.equipment.find(c => c.id === eq.pairedCalibratorId)?.name || "—"}
-                                </span>
-                              ) : (
-                                <span className="text-gray-400">Not paired</span>
-                              )}
-                            </td>
                           </>
                         )}
                         {type === "Calibrator" && (
@@ -711,7 +709,7 @@ export default function EquipmentEntry({
               </Button>
               <Button
                 onClick={onNext}
-                disabled={!valid || editingId !== null || data.equipment.length === 0}
+                disabled={!valid || editingId !== null || data.equipment.length === 0 || !allSlmsHavePairedCalibrators()}
                 variant="success"
               >
                 Next
@@ -727,6 +725,13 @@ export default function EquipmentEntry({
             <p className="text-sm text-red-600 flex items-start">
               <span className="mr-1">⚠️</span>
               <span>Finish editing the equipment before saving or continuing.</span>
+            </p>
+          )}
+
+          {!readOnly && !allSlmsHavePairedCalibrators() && (
+            <p className="text-sm text-orange-600 flex items-start">
+              <span className="mr-1">⚠️</span>
+              <span>Each SLM must have a paired Calibrator before proceeding. Add a Calibrator after each SLM.</span>
             </p>
           )}
           {!readOnly && equipmentListError && editingId === null && (

@@ -227,10 +227,12 @@ export default function OHSimpleApp({
               <MeasurementForm
                 data={data}
                 selectedAreaPath={currentAreaPath}
-                equipmentOptions={data.equipment.map((eq) => ({
-                  label: eq.name,
-                  value: eq.id,
-                }))}
+                equipmentOptions={data.equipment
+                  .filter((eq) => eq.type === "SLM")
+                  .map((eq) => ({
+                    label: eq.name,
+                    value: eq.id,
+                  }))}
                 onNext={() => setMode("controls")}
                 onPrev={() => setMode("noise")}
                 onChange={(patch) => {

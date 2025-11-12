@@ -242,7 +242,7 @@ export default function MeasurementForm({
       // Find the selected SLM equipment
       const selectedSlm = data.equipment.find(eq => eq.id === value);
 
-      // If the SLM has a paired calibrator, auto-select it
+      // Use the paired calibrator ID from the SLM (sequential pairing)
       const pairedCalibratorId = selectedSlm?.pairedCalibratorId || "";
 
       setMeasurementDraft((prev) => ({
@@ -288,30 +288,19 @@ export default function MeasurementForm({
   const addMeasurement = () => {
     if (readOnly) return;
 
-    // Mark all fields as touched
-    setTouched({
-      shiftDuration: true,
-      exposureTime: true,
-      slmId: true,
-      calibratorId: true,
-      ...Object.fromEntries(measurementDraft.readings.map((_, idx) => [`reading_${idx}`, true])),
-    });
-
-    // Check for required fields
-    if (
-      !measurementDraft.shiftDuration.trim() ||
-      !measurementDraft.exposureTime.trim() ||
-      !measurementDraft.slmId.trim() ||
-      !measurementDraft.calibratorId.trim() ||
-      measurementDraft.readings.length === 0 ||
-      measurementDraft.readings.some((r) => !r.trim())
-    ) {
-      return;
+    // Check for required fields FIRST
+    const missingFields = [];
+    if (!measurementDraft.shiftDuration.trim()) missingFields.push('Shift Duration');
+    if (!measurementDraft.exposureTime.trim()) missingFields.push('Exposure Time');
+    if (!measurementDraft.slmId.trim()) missingFields.push('SLM ID');
+    if (!measurementDraft.calibratorId.trim()) missingFields.push('Calibrator ID');
+    if (measurementDraft.readings.length === 0 || measurementDraft.readings.some((r) => !r.trim())) {
+      missingFields.push('Readings');
     }
 
     // Check for validation errors
     if (Object.keys(errors).length > 0) {
-      return;
+      missingFields.push('Invalid values');
     }
 
     // Check if any readings have errors (excluding info messages)
@@ -319,9 +308,24 @@ export default function MeasurementForm({
       (err) => err && !err.startsWith("ℹ️")
     );
     if (hasReadingErrors) {
+      missingFields.push('Invalid readings');
+    }
+
+    // If there are missing fields or errors, mark only those fields as touched and return
+    if (missingFields.length > 0) {
+      setTouched({
+        shiftDuration: !measurementDraft.shiftDuration.trim(),
+        exposureTime: !measurementDraft.exposureTime.trim(),
+        slmId: !measurementDraft.slmId.trim(),
+        calibratorId: !measurementDraft.calibratorId.trim(),
+        ...Object.fromEntries(
+          measurementDraft.readings.map((r, idx) => [`reading_${idx}`, !r.trim()])
+        ),
+      });
       return;
     }
 
+    // All validation passed - add the measurement
     const updated = [...measurements];
     if (editingIndex !== null) {
       updated[editingIndex] = measurementDraft;
@@ -331,6 +335,7 @@ export default function MeasurementForm({
 
     saveMeasurementsArray(updated);
 
+    // Reset form and clear touched state
     setMeasurementDraft({
       shiftDuration: "",
       exposureTime: "",
@@ -341,6 +346,7 @@ export default function MeasurementForm({
       readings: [],
       files: [],
     });
+    setTouched({});  // Clear all touched fields
     setEditingIndex(null);
   };
 
