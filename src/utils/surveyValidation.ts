@@ -127,36 +127,30 @@ function validateEquipment(data: SurveyData): ValidationIssue[] {
     });
   }
 
-  // Check calibration drift for SLMs
+  // Check SLM equipment pairing
   data.equipment.filter(eq => eq.type === 'SLM').forEach(slm => {
-    if (!slm.pre || !slm.post) {
+    if (!slm.pairedCalibratorId) {
       issues.push({
         severity: 'warning',
-        category: 'Calibration',
-        message: `SLM "${slm.name}" missing pre/post calibration readings`,
-        recommendation: 'Record both pre and post-survey calibration readings'
+        category: 'Equipment Setup',
+        message: `SLM "${slm.name}" is not paired with a calibrator`,
+        recommendation: 'Pair each SLM with its corresponding calibrator for proper traceability'
       });
     } else {
-      const drift = Math.abs(parseFloat(slm.pre) - parseFloat(slm.post));
-      if (drift > 1.0) {
-        issues.push({
-          severity: 'critical',
-          category: 'Calibration',
-          message: `SLM "${slm.name}" calibration drift ${drift.toFixed(1)} dB exceeds ±1 dB limit`,
-          recommendation: 'Equipment failed calibration check - measurements may be invalid. Re-measure with properly calibrated equipment.'
-        });
-      } else if (drift > 0.5) {
+      // Check if paired calibrator exists
+      const pairedCal = data.equipment.find(eq => eq.id === slm.pairedCalibratorId);
+      if (!pairedCal) {
         issues.push({
           severity: 'warning',
-          category: 'Calibration',
-          message: `SLM "${slm.name}" calibration drift ${drift.toFixed(1)} dB is acceptable but elevated`,
-          recommendation: 'Monitor equipment performance and consider servicing if drift persists'
+          category: 'Equipment Setup',
+          message: `SLM "${slm.name}" is paired with a calibrator that no longer exists`,
+          recommendation: 'Re-pair the SLM with an existing calibrator'
         });
       }
     }
   });
 
-  // Check calibrator certificate validity
+  // Check calibrator certificate validity and calibration readings
   data.equipment.filter(eq => eq.type === 'Calibrator').forEach(cal => {
     if (!cal.calibrationDate) {
       issues.push({
@@ -177,6 +171,33 @@ function validateEquipment(data: SurveyData): ValidationIssue[] {
           category: 'Calibration',
           message: `Calibrator "${cal.name}" calibration certificate expired`,
           recommendation: 'Obtain fresh calibration certificate from SANAS-accredited laboratory'
+        });
+      }
+    }
+
+    // Check calibrator pre/post readings and drift
+    if (!cal.pre || !cal.post) {
+      issues.push({
+        severity: 'warning',
+        category: 'Calibration',
+        message: `Calibrator "${cal.name}" missing pre/post calibration readings`,
+        recommendation: 'Record both pre and post-survey calibration readings'
+      });
+    } else {
+      const drift = Math.abs(parseFloat(cal.pre) - parseFloat(cal.post));
+      if (drift > 1.0) {
+        issues.push({
+          severity: 'critical',
+          category: 'Calibration',
+          message: `Calibrator "${cal.name}" calibration drift ${drift.toFixed(1)} dB exceeds ±1 dB limit`,
+          recommendation: 'Calibrator failed drift check - measurements may be invalid. Service calibrator or use backup equipment.'
+        });
+      } else if (drift > 0.5) {
+        issues.push({
+          severity: 'warning',
+          category: 'Calibration',
+          message: `Calibrator "${cal.name}" calibration drift ${drift.toFixed(1)} dB is acceptable but elevated`,
+          recommendation: 'Monitor calibrator performance and consider servicing if drift persists'
         });
       }
     }
