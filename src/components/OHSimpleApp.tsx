@@ -14,7 +14,6 @@ import Summary from "./Summary";
 import GijimaLogo from "./assets/Gijima-Logo.jpg";
 import HearingProtectionForm from "./HearingProtectionForm";
 import ExposuresForm from "./ExposuresForm";
-import AudiometryForm from "./AudiometryForm";
 import CommentsForm from "./CommentsForm";
 import Preview from "./Preview";
 
@@ -45,7 +44,6 @@ export default function OHSimpleApp({
     "Controls",
     "Hearing",
     "Exposures",
-    "Audiometry",
     "Comments",
   ];
   const modeToStepIndex: Record<string, number> = {
@@ -54,12 +52,11 @@ export default function OHSimpleApp({
     controls: 2,
     hearing: 3,
     exposures: 4,
-    audiometry: 5,
-    comments: 6,
+    comments: 5,
   };
 
   const [mode, setMode] = useState<
-    "survey" | "noise" | "measurement" | "controls" | "hearing" | "exposures" | "audiometry" | "comments"
+    "survey" | "noise" | "measurement" | "controls" | "hearing" | "exposures" | "comments"
   >("survey");
 
   const [data, setData] = useState<SurveyData>(initialSurvey);
@@ -275,20 +272,8 @@ export default function OHSimpleApp({
                 data={data}
                 onChange={patch}
                 selectedAreaPath={currentAreaPath}
-                onNext={() => setMode("audiometry")}
-                onPrev={() => setMode("hearing")}
-                readOnly={readOnly}
-              />
-            )}
-
-            {mode === "audiometry" && (
-              <AudiometryForm
-                data={data}
-                selectedAreaPath={currentAreaPath}
                 onNext={() => setMode("comments")}
-                onPrev={() => setMode("exposures")}
-                onChange={patch}
-                onSave={() => onSaveSurvey(data)}
+                onPrev={() => setMode("hearing")}
                 readOnly={readOnly}
               />
             )}
@@ -297,7 +282,7 @@ export default function OHSimpleApp({
               <CommentsForm
                 data={data}
                 onChange={patch}
-                onPrev={() => setMode("audiometry")}
+                onPrev={() => setMode("exposures")}
                 currentStep={modeToStepIndex["comments"] + 1}
                 totalSteps={detailSteps.length}
                 currentAreaPath={currentAreaPath}

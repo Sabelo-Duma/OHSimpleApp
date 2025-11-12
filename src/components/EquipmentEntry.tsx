@@ -42,6 +42,7 @@ export default function EquipmentEntry({
     areaRef: "",
     startDate: "",
     endDate: "",
+    pairedCalibratorId: "",
   });
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export default function EquipmentEntry({
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [equipmentListError, setEquipmentListError] = useState<string>("");
+  const [validationBannerError, setValidationBannerError] = useState<string>("");
 
   // Validate equipment form on temp change
   useEffect(() => {
@@ -106,6 +108,7 @@ export default function EquipmentEntry({
       areaRef: "",
       startDate: "",
       endDate: "",
+      pairedCalibratorId: "",
     });
     setEditingId(null);
   };
@@ -120,15 +123,28 @@ export default function EquipmentEntry({
       post: true,
       during: true,
       calibrationDate: true,
+      areaRef: true,
     });
 
     // Validate the equipment
     const validation = validateEquipment(temp);
 
-    // If there are errors, don't save
+    // If there are errors, don't save and show inline error
     if (!validation.isValid) {
+      // Scroll to top to show errors
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Get first error message
+      const firstError = Object.values(validation.errors)[0];
+      setValidationBannerError(firstError);
+
+      // Auto-hide after 5 seconds
+      setTimeout(() => setValidationBannerError(""), 5000);
       return;
     }
+
+    // Clear validation banner error
+    setValidationBannerError("");
 
     if (editingId) {
       const updated = data.equipment.map((eq) =>
@@ -170,30 +186,15 @@ export default function EquipmentEntry({
     icon: string;
   } => {
     if (eq.type === "SLM") {
-      // Check calibration drift
-      if (eq.pre && eq.post) {
-        const drift = Math.abs(parseFloat(eq.pre) - parseFloat(eq.post));
-        if (drift > 1.0) {
-          return {
-            status: 'error',
-            message: `Drift: ${drift.toFixed(1)} dB (exceeds ±1 dB limit)`,
-            icon: '❌'
-          };
-        } else if (drift > 0.5) {
-          return {
-            status: 'warning',
-            message: `Drift: ${drift.toFixed(1)} dB (acceptable)`,
-            icon: '⚠️'
-          };
-        } else {
-          return {
-            status: 'good',
-            message: `Drift: ${drift.toFixed(1)} dB (excellent)`,
-            icon: '✅'
-          };
-        }
+      // SLM status based on calibration dates
+      if (eq.startDate && eq.endDate) {
+        return {
+          status: 'good',
+          message: 'Calibration dates recorded',
+          icon: '✅'
+        };
       }
-      return { status: 'warning', message: 'No calibration data', icon: '⚠️' };
+      return { status: 'warning', message: 'No calibration dates', icon: '⚠️' };
     }
 
     if (eq.type === "Calibrator") {
@@ -243,6 +244,24 @@ export default function EquipmentEntry({
 
   return (
     <Section title="">
+      {/* Validation Banner Error */}
+      {validationBannerError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          <span className="text-xl text-red-600 flex-shrink-0">✕</span>
+          <div className="flex-1">
+            <h4 className="font-semibold text-red-800 mb-1">Cannot Save Equipment</h4>
+            <p className="text-sm text-red-700">{validationBannerError}</p>
+          </div>
+          <button
+            onClick={() => setValidationBannerError("")}
+            className="text-xl text-red-600 hover:text-red-800 flex-shrink-0"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* --- Header --- */}
       <div className="flex justify-center mb-6 relative">
         <h2 className="text-xl font-bold text-center">Equipment Entry</h2>
@@ -347,26 +366,31 @@ export default function EquipmentEntry({
           </div>
 
           {/* Dates */}
-          <div className="flex gap-4 mb-4">
-            <div className="w-1/2">
-              <Field
-                label="Start Date"
-                type="date"
-                value={temp.startDate || ""}
-                onChange={(val) => setTemp({ ...temp, startDate: val })}
-                placeholder=""
-                disabled={readOnly}
-              />
+          <div className="mb-4">
+            <div className="mb-2">
+              <span className="text-sm font-semibold text-gray-700">Calibration dates:</span>
             </div>
-            <div className="w-1/2">
-              <Field
-                label="End Date"
-                type="date"
-                value={temp.endDate || ""}
-                onChange={(val) => setTemp({ ...temp, endDate: val })}
-                placeholder=""
-                disabled={readOnly}
-              />
+            <div className="flex gap-4">
+              <div className="w-1/2">
+                <Field
+                  label="Start Date"
+                  type="date"
+                  value={temp.startDate || ""}
+                  onChange={(val) => setTemp({ ...temp, startDate: val })}
+                  placeholder=""
+                  disabled={readOnly}
+                />
+              </div>
+              <div className="w-1/2">
+                <Field
+                  label="End Date"
+                  type="date"
+                  value={temp.endDate || ""}
+                  onChange={(val) => setTemp({ ...temp, endDate: val })}
+                  placeholder=""
+                  disabled={readOnly}
+                />
+              </div>
             </div>
           </div>
 
@@ -424,6 +448,26 @@ export default function EquipmentEntry({
                   />
                 </div>
               </div>
+
+              {/* Paired Calibrator */}
+              <h4 className="text-md font-bold underline mb-2">PAIRED CALIBRATOR:</h4>
+              <div className="mb-4">
+                <SelectField
+                  label="Select Calibrator"
+                  value={temp.pairedCalibratorId || ""}
+                  options={[
+                    { label: "-- Select Calibrator --", value: "" },
+                    ...data.equipment
+                      .filter(eq => eq.type === "Calibrator")
+                      .map(eq => ({ label: eq.name, value: eq.id }))
+                  ]}
+                  onChange={(val) => setTemp({ ...temp, pairedCalibratorId: val })}
+                  disabled={readOnly}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  ℹ️ Select the calibrator that will be used with this SLM. When you select this SLM in measurements, the paired calibrator will be automatically selected.
+                </p>
+              </div>
             </>
           )}
 
@@ -457,17 +501,23 @@ export default function EquipmentEntry({
                   type="number"
                   value={temp.pre}
                   onChange={(val) => setTemp({ ...temp, pre: val })}
-                  placeholder=""
+                  placeholder="e.g., 114"
                   disabled={readOnly}
+                  required={true}
+                  error={getFieldError("pre", errors, touched)}
+                  success={isFieldValid(temp.pre, "pre", errors)}
+                  onBlur={() => handleBlur("pre")}
                 />
                 <Field
                   label="During (dB)"
                   type="number"
                   value={temp.during}
                   onChange={(val) => setTemp({ ...temp, during: val })}
-                  placeholder=""
+                  placeholder="e.g., 114"
                   disabled={readOnly}
-                  warning={getFieldError("during", errors, touched)}
+                  required={true}
+                  error={getFieldError("during", errors, touched)}
+                  success={isFieldValid(temp.during, "during", errors)}
                   onBlur={() => handleBlur("during")}
                 />
                 <Field
@@ -475,16 +525,23 @@ export default function EquipmentEntry({
                   type="number"
                   value={temp.post}
                   onChange={(val) => setTemp({ ...temp, post: val })}
-                  placeholder=""
+                  placeholder="e.g., 114"
                   disabled={readOnly}
+                  required={true}
+                  error={getFieldError("post", errors, touched)}
+                  success={isFieldValid(temp.post, "post", errors)}
+                  onBlur={() => handleBlur("post")}
                 />
                 <Field
                   label="Area Ref (dB)"
                   type="number"
                   value={temp.areaRef}
                   onChange={(val) => setTemp({ ...temp, areaRef: val })}
-                  placeholder=""
+                  placeholder="Optional"
                   disabled={readOnly}
+                  error={getFieldError("areaRef", errors, touched)}
+                  success={isFieldValid(temp.areaRef, "areaRef", errors)}
+                  onBlur={() => handleBlur("areaRef")}
                 />
               </div>
 
@@ -533,11 +590,10 @@ export default function EquipmentEntry({
                     <th className="px-3 py-2 border-b text-center">Serial</th>
                     {type === "SLM" && (
                       <>
-                        <th className="px-3 py-2 border-b text-center">Pre (dB)</th>
-                        <th className="px-3 py-2 border-b text-center">Post (dB)</th>
-                        <th className="px-3 py-2 border-b text-center">Drift</th>
                         <th className="px-3 py-2 border-b text-center">Weighting</th>
                         <th className="px-3 py-2 border-b text-center">Response</th>
+                        <th className="px-3 py-2 border-b text-center">LEQ/SPL</th>
+                        <th className="px-3 py-2 border-b text-center">Paired Calibrator</th>
                       </>
                     )}
                     {type === "Calibrator" && (
@@ -569,27 +625,18 @@ export default function EquipmentEntry({
                         <td className="px-3 py-2 text-center text-xs text-gray-600">{eq.serial}</td>
                         {type === "SLM" && (
                           <>
-                            <td className="px-3 py-2 text-center">
-                              {eq.pre ? parseFloat(eq.pre).toFixed(1) : '—'}
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              {eq.post ? parseFloat(eq.post).toFixed(1) : '—'}
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              {eq.pre && eq.post ? (
-                                <span className={`font-medium ${
-                                  Math.abs(parseFloat(eq.pre) - parseFloat(eq.post)) > 1.0
-                                    ? 'text-red-600'
-                                    : Math.abs(parseFloat(eq.pre) - parseFloat(eq.post)) > 0.5
-                                    ? 'text-yellow-600'
-                                    : 'text-green-600'
-                                }`}>
-                                  {Math.abs(parseFloat(eq.pre) - parseFloat(eq.post)).toFixed(1)}
-                                </span>
-                              ) : '—'}
-                            </td>
                             <td className="px-3 py-2 text-center">{eq.weighting}</td>
                             <td className="px-3 py-2 text-center text-xs">{eq.responseImpulse}</td>
+                            <td className="px-3 py-2 text-center text-xs">{eq.responseLEQ}</td>
+                            <td className="px-3 py-2 text-center text-xs">
+                              {eq.pairedCalibratorId ? (
+                                <span className="text-blue-600 font-medium">
+                                  {data.equipment.find(c => c.id === eq.pairedCalibratorId)?.name || "—"}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">Not paired</span>
+                              )}
+                            </td>
                           </>
                         )}
                         {type === "Calibrator" && (

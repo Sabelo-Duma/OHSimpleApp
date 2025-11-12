@@ -44,6 +44,7 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [pdfAvailable, setPdfAvailable] = useState(!!pdfMake);
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  const [pdfErrorMessage, setPdfErrorMessage] = useState<string>("");
 
   // Canvas signature refs and state
   const sigCanvas = useRef<any>(null);
@@ -110,7 +111,8 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
   // Generate PDF using pdfMake
   const handlePdfClick = () => {
     if (!pdfMake) {
-      alert('PDF generation is not available in your current environment. Please use the Word document download instead.');
+      setPdfErrorMessage('PDF generation is not available in your current environment. Please use the Word document download instead.');
+      setTimeout(() => setPdfErrorMessage(""), 5000);
       return;
     }
 
@@ -326,7 +328,8 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
       setHasViewedPDF(true);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Error generating PDF. Please use the Word document download instead.');
+      setPdfErrorMessage('Error generating PDF. Please use the Word document download instead.');
+      setTimeout(() => setPdfErrorMessage(""), 5000);
     }
   };
 
@@ -440,6 +443,24 @@ export default function Preview({ data, onPrev, onNext, readOnly = false }: Prev
   return (
     <>
       <Section title="Fieldsheet Preview & Verification">
+        {/* PDF Error Message Banner */}
+        {pdfErrorMessage && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+            <span className="text-xl text-red-600 flex-shrink-0">✕</span>
+            <div className="flex-1">
+              <h4 className="font-semibold text-red-800 mb-1">PDF Generation Error</h4>
+              <p className="text-sm text-red-700">{pdfErrorMessage}</p>
+            </div>
+            <button
+              onClick={() => setPdfErrorMessage("")}
+              className="text-xl text-red-600 hover:text-red-800 flex-shrink-0"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         <div className="space-y-6 mb-8">
 
           {/* Instructions */}

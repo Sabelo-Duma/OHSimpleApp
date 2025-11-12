@@ -6,6 +6,8 @@ import { msalConfig } from "./authConfig";
 import OHSimpleApp from "./components/OHSimpleApp";
 import Login from "./components/Login";
 import Greetings from "./components/Greetings";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+import { ToastProvider, useToast } from "./components/common/ToastContainer";
 import { SurveyData, emptySurvey } from "./components/types";
 
 const pca = new PublicClientApplication(msalConfig);
@@ -13,13 +15,20 @@ const pca = new PublicClientApplication(msalConfig);
 function AppContent() {
   const { instance, inProgress } = useMsal();
   const isAuthenticated = useIsAuthenticated();
+  const { showToast } = useToast();
 
   const [loaded, setLoaded] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [showSurvey, setShowSurvey] = useState(false);
   const [surveys, setSurveys] = useState<SurveyData[]>(() => {
-    const saved = localStorage.getItem("surveysInProgress");
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem("surveysInProgress");
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error("Failed to load surveys from localStorage:", error);
+      // Show user-friendly notification (optional)
+      return [];
+    }
   });
   const [currentSurvey, setCurrentSurvey] = useState<SurveyData | null>(null);
   const [isViewMode, setIsViewMode] = useState(false); // Add this state for view mode
@@ -86,9 +95,14 @@ function AppContent() {
 
   // commit only if user confirms save
   const handleSaveSurvey = (survey: SurveyData) => {
-    const updated = [...surveys.filter((s) => s.id !== survey.id), survey];
-    setSurveys(updated);
-    localStorage.setItem("surveysInProgress", JSON.stringify(updated));
+    try {
+      const updated = [...surveys.filter((s) => s.id !== survey.id), survey];
+      setSurveys(updated);
+      localStorage.setItem("surveysInProgress", JSON.stringify(updated));
+    } catch (error) {
+      console.error("Failed to save survey to localStorage:", error);
+      showToast("Failed to save survey data. Your browser storage may be full.", "error");
+    }
   };
 
   // exit without saving (unless user confirms save inside OHSimpleApp)
@@ -99,9 +113,14 @@ function AppContent() {
   };
 
   const handleDeleteSurvey = (surveyId: string) => {
-    const updated = surveys.filter((s) => s.id !== surveyId);
-    setSurveys(updated);
-    localStorage.setItem("surveysInProgress", JSON.stringify(updated));
+    try {
+      const updated = surveys.filter((s) => s.id !== surveyId);
+      setSurveys(updated);
+      localStorage.setItem("surveysInProgress", JSON.stringify(updated));
+    } catch (error) {
+      console.error("Failed to delete survey from localStorage:", error);
+      showToast("Failed to delete survey data.", "error");
+    }
   };
 
   const handleLogout = () => {
@@ -112,32 +131,38 @@ function AppContent() {
 
   if (!showSurvey || currentSurvey === null) {
     return (
-      <Greetings
-        username={user.username}
-        surveys={surveys}
-        onNewSurvey={startNewSurvey}
-        onResumeSurvey={handleResumeSurvey}
-        onViewSurvey={handleViewSurvey}
-        onDeleteSurvey={handleDeleteSurvey}
-        onLogout={handleLogout}
-      />
+      <ErrorBoundary>
+        <Greetings
+          username={user.username}
+          surveys={surveys}
+          onNewSurvey={startNewSurvey}
+          onResumeSurvey={handleResumeSurvey}
+          onViewSurvey={handleViewSurvey}
+          onDeleteSurvey={handleDeleteSurvey}
+          onLogout={handleLogout}
+        />
+      </ErrorBoundary>
     );
   }
 
   return (
-    <OHSimpleApp
-      initialSurvey={currentSurvey}
-      onExit={handleExitSurvey}
-      onSaveSurvey={handleSaveSurvey}
-      readOnly={isViewMode}
-    />
+    <ErrorBoundary>
+      <OHSimpleApp
+        initialSurvey={currentSurvey}
+        onExit={handleExitSurvey}
+        onSaveSurvey={handleSaveSurvey}
+        readOnly={isViewMode}
+      />
+    </ErrorBoundary>
   );
 }
 
 export default function App() {
   return (
     <MsalProvider instance={pca}>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </MsalProvider>
   );
 }

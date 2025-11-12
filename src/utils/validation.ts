@@ -118,58 +118,16 @@ export function validateEquipment(equipment: Partial<Equipment>): ValidationResu
 
   // SLM-specific validation
   if (equipment.type === "SLM") {
-    // Pre-calibration validation
-    if (!equipment.pre?.trim()) {
-      errors.pre = "Pre-calibration reading is required (SANS 10083)";
-    } else {
-      const preValue = parseFloat(equipment.pre);
-      if (isNaN(preValue)) {
-        errors.pre = "Pre-calibration must be a valid number";
-      } else if (preValue < 90 || preValue > 125) {
-        errors.pre = "Pre-calibration reading unusual (expected 90-125 dB). Please verify.";
-      }
-    }
-
-    // Post-calibration validation
-    if (!equipment.post?.trim()) {
-      errors.post = "Post-calibration reading is required (SANS 10083)";
-    } else {
-      const postValue = parseFloat(equipment.post);
-      if (isNaN(postValue)) {
-        errors.post = "Post-calibration must be a valid number";
-      } else if (postValue < 90 || postValue > 125) {
-        errors.post = "Post-calibration reading unusual (expected 90-125 dB). Please verify.";
-      }
-    }
-
-    // Calibration drift check
-    if (equipment.pre && equipment.post) {
-      const preValue = parseFloat(equipment.pre);
-      const postValue = parseFloat(equipment.post);
-
-      if (!isNaN(preValue) && !isNaN(postValue)) {
-        const drift = Math.abs(preValue - postValue);
-        if (drift > 1.0) {
-          errors.calibrationDrift = `⚠️ ALERT: Calibration drift of ${drift.toFixed(1)} dB exceeds acceptable limit (±1 dB per SANS 10083). Equipment may require recalibration.`;
-        }
-      }
-    }
-
-    // During calibration (optional but validate if provided)
-    if (equipment.during?.trim()) {
-      const duringValue = parseFloat(equipment.during);
-      if (isNaN(duringValue)) {
-        errors.during = "During-calibration must be a valid number";
-      } else if (duringValue < 90 || duringValue > 125) {
-        errors.during = "During-calibration reading unusual (expected 90-125 dB). Please verify.";
-      }
-    }
+    // SLM no longer requires Pre/Post/Drift - validation handled by paired calibrator
+    // Optional: Validate calibration dates if needed
+    // Start and End dates are optional for SLM
   }
 
   // Calibrator-specific validation
   if (equipment.type === "Calibrator") {
+    // Calibration certificate date validation
     if (!equipment.calibrationDate?.trim()) {
-      errors.calibrationDate = "Calibration date is required for calibrators";
+      errors.calibrationDate = "Calibration certificate date is required (SANS 10083)";
     } else {
       const calDate = new Date(equipment.calibrationDate);
       const today = new Date();
@@ -184,8 +142,67 @@ export function validateEquipment(equipment: Partial<Equipment>): ValidationResu
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
         if (calDate < oneYearAgo) {
-          errors.calibrationDate = "⚠️ WARNING: Calibration certificate may be expired. Verify calibration is current.";
+          errors.calibrationDate = "⚠️ WARNING: Calibration certificate may be expired (>1 year old). Verify calibration is current per SANS 10083.";
         }
+      }
+    }
+
+    // Pre-calibration reading (Reference SPL)
+    if (!equipment.pre?.trim()) {
+      errors.pre = "Pre-calibration reading is required for traceability";
+    } else {
+      const preValue = parseFloat(equipment.pre);
+      if (isNaN(preValue)) {
+        errors.pre = "Pre-calibration must be a valid number";
+      } else if (preValue < 90 || preValue > 125) {
+        errors.pre = "⚠️ Pre-calibration reading unusual (expected 90-125 dB). Please verify.";
+      }
+    }
+
+    // During-calibration reading (Reference SPL)
+    if (!equipment.during?.trim()) {
+      errors.during = "During-calibration reading is required";
+    } else {
+      const duringValue = parseFloat(equipment.during);
+      if (isNaN(duringValue)) {
+        errors.during = "During-calibration must be a valid number";
+      } else if (duringValue < 90 || duringValue > 125) {
+        errors.during = "⚠️ During-calibration reading unusual (expected 90-125 dB). Please verify.";
+      }
+    }
+
+    // Post-calibration reading (Reference SPL)
+    if (!equipment.post?.trim()) {
+      errors.post = "Post-calibration reading is required for traceability";
+    } else {
+      const postValue = parseFloat(equipment.post);
+      if (isNaN(postValue)) {
+        errors.post = "Post-calibration must be a valid number";
+      } else if (postValue < 90 || postValue > 125) {
+        errors.post = "⚠️ Post-calibration reading unusual (expected 90-125 dB). Please verify.";
+      }
+    }
+
+    // Calibration drift check (Pre vs Post)
+    if (equipment.pre && equipment.post) {
+      const preValue = parseFloat(equipment.pre);
+      const postValue = parseFloat(equipment.post);
+
+      if (!isNaN(preValue) && !isNaN(postValue)) {
+        const drift = Math.abs(preValue - postValue);
+        if (drift > 1.0) {
+          errors.calibrationDrift = `⚠️ ALERT: Calibration drift of ${drift.toFixed(1)} dB exceeds acceptable limit (±1 dB per SANS 10083). Calibrator may require servicing.`;
+        }
+      }
+    }
+
+    // Area reference noise level (optional but validate if provided)
+    if (equipment.areaRef?.trim()) {
+      const areaRefValue = parseFloat(equipment.areaRef);
+      if (isNaN(areaRefValue)) {
+        errors.areaRef = "Area reference must be a valid number";
+      } else if (areaRefValue < 0 || areaRefValue > 140) {
+        errors.areaRef = "Area reference value out of range (0-140 dB)";
       }
     }
   }

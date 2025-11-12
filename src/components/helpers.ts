@@ -19,7 +19,6 @@ import {
 } from "docx";
 import { calculateAverageLAeq, getExposureSummary, classifyNoiseZone } from "../utils/noiseCalculations";
 import { getProtectionSummary } from "../utils/hearingProtectionCalculations";
-import { getAudiometrySummary } from "../utils/audiometryCalculations";
 
 /**
  * Helper function to create yellow-highlighted TextRun for survey response data
@@ -2005,7 +2004,6 @@ export async function buildWordContent(
     const controls = data.controlsByArea?.[areaKey];
     const devices = data.hearingProtectionDevices?.[areaKey] || [];
     const exposures = data.exposuresByArea?.[areaKey];
-    const employees = data.employeesByArea?.[areaKey] || [];
     const comments = data.commentsByArea?.[areaKey];
 
     // Build hierarchical path for table title
@@ -2541,127 +2539,6 @@ export async function buildWordContent(
             ]
           })
         );
-      });
-
-      children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
-    }
-
-    // Audiometry - Hearing Conservation Program Section
-    if (employees.length > 0) {
-      children.push(
-        new Paragraph({
-          children: [new TextRun({ text: "Audiometry - Hearing Conservation Program:", bold: true, size: 22, font: "Calibri" })],
-          spacing: { before: 200, after: 100 }
-        })
-      );
-
-      employees.forEach((emp, idx) => {
-        const age = emp.dateOfBirth ? Math.floor((new Date().getTime() - new Date(emp.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
-        const summary = getAudiometrySummary(emp);
-
-        children.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: `• Employee ${idx + 1}: `, bold: true, size: 20, font: "Calibri" }),
-              highlightedText(`${emp.firstName} ${emp.lastName}`, { bold: true, size: 20 }),
-              new TextRun({ text: ` (${emp.employeeNumber})`, size: 20, font: "Calibri" })
-            ]
-          })
-        );
-
-        children.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: "  Job Title: ", size: 20, font: "Calibri" }),
-              highlightedText(emp.jobTitle, { size: 20 })
-            ]
-          })
-        );
-
-        children.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: "  Age: ", size: 20, font: "Calibri" }),
-              highlightedText(age.toString(), { size: 20 })
-            ]
-          })
-        );
-
-        children.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: "  Baseline Test: ", size: 20, font: "Calibri" }),
-              emp.baselineTest
-                ? highlightedText(`✓ Completed on ${emp.baselineTest.testDate}`, { size: 20 })
-                : new TextRun({ text: "✗ Missing", color: "FF0000", bold: true, size: 20, font: "Calibri", highlight: "yellow" })
-            ]
-          })
-        );
-
-        children.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: "  Periodic Tests: ", size: 20, font: "Calibri" }),
-              highlightedText(emp.periodicTests.length > 0 ? `${emp.periodicTests.length} test(s)` : "None", { size: 20 })
-            ]
-          })
-        );
-
-        // STS Status
-        if (emp.hasSTS) {
-          children.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: "  STS Status: ", size: 20, font: "Calibri" }),
-                new TextRun({ text: "🚨 STANDARD THRESHOLD SHIFT DETECTED", color: "FF0000", bold: true, size: 20, font: "Calibri", highlight: "yellow" })
-              ]
-            })
-          );
-
-          if (emp.stsDetails) {
-            children.push(
-              new Paragraph({
-                children: [
-                  new TextRun({ text: "    Details: ", size: 18, font: "Calibri" }),
-                  highlightedText(emp.stsDetails, { size: 18 })
-                ]
-              })
-            );
-          }
-        } else if (summary?.hasBaseline) {
-          children.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: "  STS Status: ", size: 20, font: "Calibri" }),
-                highlightedText("✓ Normal", { size: 20 })
-              ]
-            })
-          );
-        }
-
-        // Recommendations
-        if (summary && summary.recommendations.length > 0) {
-          children.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: "  Recommendations:", bold: true, size: 20, font: "Calibri" })
-              ]
-            })
-          );
-
-          summary.recommendations.forEach(rec => {
-            children.push(
-              new Paragraph({
-                children: [
-                  new TextRun({ text: "    - ", size: 18, font: "Calibri" }),
-                  highlightedText(rec, { size: 18 })
-                ]
-              })
-            );
-          });
-        }
-
-        children.push(new Paragraph({ text: "", spacing: { after: 100 } }));
       });
 
       children.push(new Paragraph({ text: "", spacing: { after: 200 } }));

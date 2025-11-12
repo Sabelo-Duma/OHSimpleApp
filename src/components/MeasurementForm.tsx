@@ -239,7 +239,17 @@ export default function MeasurementForm({
 
   const handleSlmIdChange = (value: string) => {
     if (!readOnly) {
-      setMeasurementDraft((prev) => ({ ...prev, slmId: value }));
+      // Find the selected SLM equipment
+      const selectedSlm = data.equipment.find(eq => eq.id === value);
+
+      // If the SLM has a paired calibrator, auto-select it
+      const pairedCalibratorId = selectedSlm?.pairedCalibratorId || "";
+
+      setMeasurementDraft((prev) => ({
+        ...prev,
+        slmId: value,
+        calibratorId: pairedCalibratorId // Auto-select paired calibrator
+      }));
     }
   };
 
@@ -612,11 +622,13 @@ export default function MeasurementForm({
             disabled={readOnly}
           >
             <option value="">Select Calibrator</option>
-            {["W152", "IS 30C"].map((id) => (
-              <option key={id} value={id}>
-                {id}
-              </option>
-            ))}
+            {data.equipment
+              .filter(eq => eq.type === "Calibrator")
+              .map((eq) => (
+                <option key={eq.id} value={eq.id}>
+                  {eq.name}
+                </option>
+              ))}
           </select>
         </div>
       </div>
@@ -695,8 +707,8 @@ export default function MeasurementForm({
                         </div>
                       </td>
                       <td className="border px-2 py-1 text-xs text-gray-600">
-                        <div>SLM: {m.slmId}</div>
-                        <div>Cal: {m.calibratorId}</div>
+                        <div>SLM: {data.equipment.find(eq => eq.id === m.slmId)?.name || m.slmId}</div>
+                        <div>Cal: {data.equipment.find(eq => eq.id === m.calibratorId)?.name || m.calibratorId}</div>
                       </td>
                       {!readOnly && (
                         <td className="border px-2 py-1">

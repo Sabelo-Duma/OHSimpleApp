@@ -363,17 +363,8 @@ export default function AreaAndNoise({
   const openDetails = (main: number, sub?: number, ss?: number) => {
     if (onOpenDetails) {
       onOpenDetails({ main, sub, ss });
-    } else {
-      const areaName =
-        typeof ss === "number"
-          ? data.areas[main]?.subAreas?.[sub!]?.subAreas?.[ss]?.name
-          : typeof sub === "number"
-          ? data.areas[main]?.subAreas?.[sub]?.name
-          : data.areas[main]?.name;
-      window.alert(
-        `Details form not implemented yet. Would open details for "${areaName ?? "selected area"}".`
-      );
     }
+    // Details form is always provided via onOpenDetails prop
   };
 
   return (

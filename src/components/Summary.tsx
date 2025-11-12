@@ -10,7 +10,6 @@ import { saveAs } from "file-saver";
 import { Pie } from 'react-chartjs-2';
 import { Chart, ArcElement, Tooltip, Legend } from 'chart.js';
 import { validateSurvey, ValidationIssue } from "../utils/surveyValidation";
-import { getAudiometrySummary } from "../utils/audiometryCalculations";
 Chart.register(ArcElement, Tooltip, Legend);
 
 interface SummaryProps {
@@ -452,7 +451,6 @@ export default function Summary({ data, onPrev, onNext, onReset, readOnly = fals
     const controls = (data.controlsByArea && data.controlsByArea[areaKey]) || null;
     const devices = (data.hearingProtectionDevices && data.hearingProtectionDevices[areaKey]) || [];
     const ex = (data.exposuresByArea && data.exposuresByArea[areaKey]) || null;
-    const employees = (data.employeesByArea && data.employeesByArea[areaKey]) || [];
     const c = (data.commentsByArea && data.commentsByArea[areaKey]) || null;
     return (
       <>
@@ -608,67 +606,6 @@ export default function Summary({ data, onPrev, onNext, onReset, readOnly = fals
                   <td className="border px-2 py-1">{ex.prohibited}</td>
                   <td className="border px-2 py-1">{ex.prohibitedDetail}</td>
                 </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-        {/* Audiometry - Hearing Conservation Program */}
-        {employees.length > 0 && (
-          <div className="overflow-x-auto mt-2">
-            <div className="font-bold mb-1">Audiometry - Hearing Conservation Program</div>
-            <table className="min-w-full border text-xs">
-              <thead>
-                <tr className="bg-blue-900 text-white">
-                  <th className="border px-2 py-1">#</th>
-                  <th className="border px-2 py-1">Name</th>
-                  <th className="border px-2 py-1">Emp No.</th>
-                  <th className="border px-2 py-1">Job Title</th>
-                  <th className="border px-2 py-1">Age</th>
-                  <th className="border px-2 py-1">Baseline Test</th>
-                  <th className="border px-2 py-1">Periodic Tests</th>
-                  <th className="border px-2 py-1">STS Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map((emp, idx) => {
-                  const age = emp.dateOfBirth ? Math.floor((new Date().getTime() - new Date(emp.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
-                  const summary = getAudiometrySummary(emp);
-
-                  return (
-                    <tr key={emp.id} className={emp.hasSTS ? "bg-red-50" : ""}>
-                      <td className="border px-2 py-1 text-center">{idx + 1}</td>
-                      <td className="border px-2 py-1">{emp.firstName} {emp.lastName}</td>
-                      <td className="border px-2 py-1">{emp.employeeNumber}</td>
-                      <td className="border px-2 py-1">{emp.jobTitle}</td>
-                      <td className="border px-2 py-1 text-center">{age}</td>
-                      <td className="border px-2 py-1 text-center">
-                        {emp.baselineTest ? (
-                          <span className="text-green-700 font-medium">✓ {emp.baselineTest.testDate}</span>
-                        ) : (
-                          <span className="text-red-700 font-medium">✗ Missing</span>
-                        )}
-                      </td>
-                      <td className="border px-2 py-1 text-center">
-                        {emp.periodicTests.length > 0 ? (
-                          <span className="text-blue-700 font-medium">{emp.periodicTests.length} test(s)</span>
-                        ) : (
-                          <span className="text-gray-500">None</span>
-                        )}
-                      </td>
-                      <td className="border px-2 py-1 text-center">
-                        {emp.hasSTS ? (
-                          <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded">
-                            🚨 STS DETECTED
-                          </span>
-                        ) : summary?.hasBaseline ? (
-                          <span className="text-green-700">✓ Normal</span>
-                        ) : (
-                          <span className="text-gray-500">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
               </tbody>
             </table>
           </div>
