@@ -16,6 +16,7 @@ import HearingProtectionForm from "./HearingProtectionForm";
 import ExposuresForm from "./ExposuresForm";
 import CommentsForm from "./CommentsForm";
 import Preview from "./Preview";
+import LastSaved from "./common/LastSaved";
 
 interface OHSimpleAppProps {
   initialSurvey: SurveyData;
@@ -61,10 +62,31 @@ export default function OHSimpleApp({
 
   const [data, setData] = useState<SurveyData>(initialSurvey);
   const [currentAreaPath, setCurrentAreaPath] = useState<AreaPath | null>(null);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // --- Utility Patch Helper ---
   const patch = (patchData: Partial<SurveyData>) =>
     setData((prev) => ({ ...prev, ...patchData }));
+
+  // --- Auto-Save: Save survey every 30 seconds ---
+  useEffect(() => {
+    if (readOnly) return; // Don't auto-save in read-only mode
+
+    const autoSaveInterval = setInterval(() => {
+      setIsSaving(true);
+      try {
+        onSaveSurvey(data);
+        setLastSaved(new Date());
+      } catch (error) {
+        console.error("Auto-save failed:", error);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [data, readOnly, onSaveSurvey]);
 
   // --- Auto scroll top when navigating ---
   useEffect(() => {
@@ -123,15 +145,22 @@ export default function OHSimpleApp({
               </div>
             )}
           </div>
-          <button
-            onClick={() => {
-              onExit(data);
-              instance.logoutPopup();
-            }}
-            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-md bg-red-600 text-white text-xs sm:text-sm font-medium hover:bg-red-700 transition whitespace-nowrap"
-          >
-            Logout
-          </button>
+
+          {/* Last Saved Indicator & Logout */}
+          <div className="flex items-center gap-3">
+            {!readOnly && (
+              <LastSaved lastSaved={lastSaved} isSaving={isSaving} />
+            )}
+            <button
+              onClick={() => {
+                onExit(data);
+                instance.logoutPopup();
+              }}
+              className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-md bg-red-600 text-white text-xs sm:text-sm font-medium hover:bg-red-700 transition whitespace-nowrap"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
         {/* --- Main Survey Flow --- */}
