@@ -159,11 +159,15 @@ export default function StartSurvey({
         </div>
       </div>
 
-      {/* SURVEY TYPE heading */}
+      {/* Survey Type - Auto-filled, read-only */}
       <div className="mb-6">
-        <span className="font-bold underline uppercase text-black text-sm">
-          Survey Type:
-        </span>
+        <Field
+          label="Survey Type"
+          value={data.surveyType || "Noise Zoning"}
+          onChange={() => {}}
+          disabled={true}
+          required={false}
+        />
       </div>
 
       {/* Site */}

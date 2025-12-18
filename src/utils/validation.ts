@@ -40,11 +40,6 @@ export function validateSurveyInfo(data: Partial<SurveyData>): ValidationResult 
     errors.site = "Site location must be at least 2 characters";
   }
 
-  // Survey type validation
-  if (!data.surveyType?.trim()) {
-    errors.surveyType = "Survey type is required";
-  }
-
   // Start date validation
   if (!data.startDate) {
     errors.startDate = "Survey start date is required";

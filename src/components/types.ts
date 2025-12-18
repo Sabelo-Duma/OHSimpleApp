@@ -168,7 +168,7 @@ export const emptySurvey: SurveyData = {
   client: "",
   project: "",
   site: "",
-  surveyType: "",
+  surveyType: "Noise Zoning",
   startDate: "",
   endDate: "",
   description: "",

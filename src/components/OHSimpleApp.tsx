@@ -102,19 +102,57 @@ export default function OHSimpleApp({
     setCurrentAreaPath(null);
   };
 
-  // --- Mark Area as Completed ---
-  const markCompleted = (areas: typeof data.areas, path: AreaPath) => {
+  // --- Mark Area as Completed (Immutable) ---
+  const markCompleted = (areas: typeof data.areas, path: AreaPath): typeof data.areas => {
     const main = areas[path.main];
-    if (!main) return;
+    if (!main) return areas;
+
+    const updatedAreas = [...areas];
+
     if (path.ss !== undefined) {
-      const subSub = main.subAreas?.[path.sub ?? 0]?.subAreas?.[path.ss];
-      if (subSub) subSub.detailsCompleted = true;
+      // Deep clone for sub-sub-area update
+      const subAreas = main.subAreas ?? [];
+      const subIndex = path.sub ?? 0;
+      const subSubAreas = subAreas[subIndex]?.subAreas ?? [];
+
+      const updatedSubSubAreas = [...subSubAreas];
+      updatedSubSubAreas[path.ss] = {
+        ...subSubAreas[path.ss],
+        detailsCompleted: true
+      };
+
+      const updatedSubAreas = [...subAreas];
+      updatedSubAreas[subIndex] = {
+        ...subAreas[subIndex],
+        subAreas: updatedSubSubAreas
+      };
+
+      updatedAreas[path.main] = {
+        ...main,
+        subAreas: updatedSubAreas
+      };
     } else if (path.sub !== undefined) {
-      const sub = main.subAreas?.[path.sub];
-      if (sub) sub.detailsCompleted = true;
+      // Deep clone for sub-area update
+      const subAreas = main.subAreas ?? [];
+      const updatedSubAreas = [...subAreas];
+      updatedSubAreas[path.sub] = {
+        ...subAreas[path.sub],
+        detailsCompleted: true
+      };
+
+      updatedAreas[path.main] = {
+        ...main,
+        subAreas: updatedSubAreas
+      };
     } else {
-      main.detailsCompleted = true;
+      // Main area update
+      updatedAreas[path.main] = {
+        ...main,
+        detailsCompleted: true
+      };
     }
+
+    return updatedAreas;
   };
 
   // --- Handle Preview Completion ---
@@ -264,10 +302,13 @@ export default function OHSimpleApp({
                   }))}
                 onNext={() => setMode("controls")}
                 onPrev={() => setMode("noise")}
-                onChange={(patch) => {
-                  // Merge the patch into main survey data
-                  Object.assign(data, patch);
-                  onSaveSurvey(data); // optional persistence
+                onChange={(patchData) => {
+                  // Merge the patch into main survey data immutably
+                  setData((prev) => {
+                    const updated = { ...prev, ...patchData };
+                    onSaveSurvey(updated); // optional persistence
+                    return updated;
+                  });
                 }}
                 onSave={() => onSaveSurvey(data)} // optional external save
                 readOnly={readOnly}
@@ -323,11 +364,10 @@ export default function OHSimpleApp({
                     setCurrentAreaPath(null);
                     return;
                   }
-                  
+
                   setData((prev) => {
-                    const updated = [...prev.areas];
-                    markCompleted(updated, path);
-                    return { ...prev, areas: updated };
+                    const updatedAreas = markCompleted(prev.areas, path);
+                    return { ...prev, areas: updatedAreas };
                   });
                   setMode("survey");
                   setCurrentAreaPath(null);
